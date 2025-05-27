@@ -164,6 +164,10 @@ ui/SectionAutogens.cpp:
 SectionDirector.o:
 	.text       start:0x001247CC end:0x00125B04
 
+RKNet/RKNetController.cpp:
+	.text       start:0x00145770 end:0x00149E98
+	.bss        start:0x000049F8 end:0x00004A00
+
 ObjKoopaFigure64.o:
 	.text       start:0x001CA560 end:0x001CADD0
 
