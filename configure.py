@@ -793,7 +793,7 @@ config.libs = [
             Object(Matching, "geo/BoxColManager.cpp"),
             Object(Matching, "geo/BoxColUnit.cpp"),
 
-            Object(NonMatching, "RKNet/RKNetController.cpp"),
+            Object(NonMatching, "net/RKNetController.cpp"),
         ],
     },
     {
