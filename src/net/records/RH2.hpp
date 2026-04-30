@@ -4,9 +4,9 @@
 
 namespace Net {
 
-struct RACEHEADER2Packet {
+struct RH2Record {
   u8 _00[0x28 - 0x00];
 };
-static_assert(sizeof(RACEHEADER2Packet) == 0x28);
+static_assert(sizeof(RH2Record) == 0x28);
 
 } // namespace Net

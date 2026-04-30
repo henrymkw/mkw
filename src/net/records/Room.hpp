@@ -11,7 +11,7 @@ enum RoomRole {
 
 // Credits: https://wiki.tockdom.com/wiki/Network_Protocol/ROOM
 #pragma options align = packed
-struct ROOMPacket {
+struct RoomRecord {
   // Message Type:
   // 1: Starting room
   // 2: Adding another as a friend
@@ -24,21 +24,21 @@ struct ROOMPacket {
   u8 _3;
 };
 #pragma options align = reset
-static_assert(sizeof(ROOMPacket) == 0x4);
+static_assert(sizeof(RoomRecord) == 0x4);
 
-class ROOMHandler {
+class RoomHandler {
 public:
   void init(RoomRole role);
 
   void reset();
 
-  static ROOMHandler* getInstance() { return spInstance; }
+  static RoomHandler* Instance() { return spInstance; }
 
 private:
   u8 _00[0x80 - 0x00];
 
-  static ROOMHandler* spInstance;
+  static RoomHandler* spInstance;
 };
-static_assert(sizeof(ROOMHandler) == 0x80);
+static_assert(sizeof(RoomHandler) == 0x80);
 
 } // namespace Net

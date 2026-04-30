@@ -10,15 +10,107 @@
 
 #include "net/DisconnectInfo.hpp"
 #include "net/FriendInfo.hpp"
-#include "net/packets/RACEPacketHolder.hpp"
+#include "net/records/RacePacketHeader.hpp"
+#include "net/records/RH1.hpp"
+#include "net/records/RH2.hpp"
+#include "net/records/Select.hpp"
+#include "net/records/RaceData.hpp"
+#include "net/records/User.hpp"
+#include "net/records/Item.hpp"
+#include "net/records/Event.hpp"
 
 #include <egg/core/eggExpHeap.hpp>
 #include <egg/core/eggTaskThread.hpp>
+#include <dwc/core/dwc_context.h>
+#include <dwc/core/dwc_friend.h>
+
+#include <gamespy/GP/gp.h>
 
 namespace Net {
 
 class NetManager {
 public:
+  class PacketHolder {
+  public:
+    PacketHolder(u32 bufferSize);
+    ~PacketHolder();
+
+    void reset();
+
+    void copy(void* src, u32 len);
+
+    void append(void* src, u32 len);
+
+    template <typename T> T* getPacket() {
+      return reinterpret_cast<T*>(m_packet);
+    }
+    u32 getBufferSize() { return m_bufferSize; }
+    u32 getPacketSize() { return m_packetSize; }
+
+    void* m_packet;
+    u32 m_bufferSize;
+    u32 m_packetSize;
+  };
+
+  // Packet ID constants
+  static const u32 HEADERPacketId = 0;
+  static const u32 RACEHEADER1PacketId = 1;
+  static const u32 RACEHEADER2PacketId = 2;
+  static const u32 SELECTPacketId = 3;
+  static const u32 RACEDATAPacketId = 4;
+  static const u32 USERPacketId = 5;
+  static const u32 ITEMPacketId = 6;
+  static const u32 EVENTPacketId = 7;
+
+  class RACEPacketHolder {
+  public:
+    NetManager::PacketHolder* getHeaderPacketHolder() {
+      return m_packets[HEADERPacketId];
+    }
+
+    NetManager::PacketHolder* getRaceHeader1PacketHolder() {
+      return m_packets[RACEHEADER1PacketId];
+    }
+
+    NetManager::PacketHolder* getRaceHeader2PacketHolder() {
+      return m_packets[RACEHEADER2PacketId];
+    }
+
+    NetManager::PacketHolder* getSelectPacketHolder() {
+      return m_packets[SELECTPacketId];
+    }
+
+    NetManager::PacketHolder* getRaceDataPacketHolder() {
+      return m_packets[RACEDATAPacketId];
+    }
+
+    NetManager::PacketHolder* getUserPacketHolder() {
+      return m_packets[USERPacketId];
+    }
+
+    NetManager::PacketHolder* getItemPacketHolder() {
+      return m_packets[ITEMPacketId];
+    }
+
+    NetManager::PacketHolder* getEventPacketHolder() {
+      return m_packets[EVENTPacketId];
+    }
+
+    NetManager::PacketHolder* getPacketHolder(u32 idx) {
+      return m_packets[idx];
+    }
+
+    inline void clearPackets();
+
+    NetManager::PacketHolder* m_packets[8];
+
+    // 0x8065a3dc
+    RACEPacketHolder();
+    // 0x8065a474
+    ~RACEPacketHolder();
+  };
+  static_assert(sizeof(RACEPacketHolder) == 0x20);
+
   enum ConnectionState {
     CONNECTION_STATE_SHUTDOWN = 0x0, // offline
     CONNECTION_STATE_BEGIN_LOGIN = 0x1,
@@ -46,13 +138,23 @@ public:
     ROOM_TYPE_JOINING_FRIEND_BT_REGIONAL = 0xA,
   };
 
-  // Certainly suspending MM related, but unsure about last two values
-  enum UnkMMSuspension {
-    MM_SUSPENSION_NONE = 0x0,
-    MM_SUSPENSION_ERROR = 0x1, // triggers a dc
-    MM_SUSPENSION_UNK2 = 0x2,  // set when matchingSuspended is true
-    MM_SUSPENSION_UNK3 = 0x3,  // set when matchingSuspended is false
+  // Only applies when m_connectionState == CONNECTION_STATE_IN_MM.
+  // MatchMakingInfo::isMatchMakingSuspended controls whether others can join a
+  // room. To change its value, clients vote for the room to be
+  // suspended/unsuspended. The host sets the flag by unanimus vote.
+  enum VoteMatchMakingSuspended {
+    VOTE_MM_NONE = 0x0,
+    VOTE_MM_DISCONNECTED = 0x1, // Triggers a dc
+    VOTE_MM_SUSPEND =
+        0x2, // Set when ending a public race or starting a private room
+    VOTE_MM_UNSUSPEND = 0x3, // Set when private room ends
   };
+
+  NetManager(EGG::ExpHeap* heap);
+
+  ~NetManager();
+
+  void init(u8 localPlayerCount);
 
   void scheduleShutdown();
 
@@ -76,15 +178,28 @@ public:
 
   void setDisconnectInfo(DisconnectType dcType, s32 errorCode);
 
-  void setToMMSuspensionUnk2();
+  void setVoteMatchMakingSuspend();
 
-  void setToMMSuspensionUnk3();
+  void setVoteMatchMakingUnsuspend();
 
   DisconnectInfo getDisconnectInfo();
 
-  void resetDisconnectInfo();
+  // Inline reset function for DisconnectInfo. Used in resetErrors() and init()
+  inline void resetDisconnectInfo();
+
+  // Resets m_hasEjectedDisk and m_disconnectInfo
+  void resetErrors();
 
   s32 matchMakingElapsedSeconds();
+
+  // Note, this gets inlined in a few places
+  void updateDWCServersAsnycPassProfanity();
+
+  void updateDWCServersAsync();
+
+  void updateFriendsProfiles();
+
+  void updateFriendsHasAddedBack(GPProfile* pidsThatAddedBack, u32 numPids);
 
   void resetFriendData(u32 friendIdx);
 
@@ -96,7 +211,21 @@ public:
 
   bool hasFoundMatch() const;
 
+  void clearRACEPacketPointers();
+
   void setConnectionStateIdle();
+
+  void construct(EGG::ExpHeap* heap);
+
+  void sendRaceUpdateUserPackets();
+
+  void formRacePacket();
+
+  void sendRacePacket();
+
+  bool sendAidRacePacket(u8 aid);
+
+  u32 getRACEPacketSize(u8 aid);
 
   void setConnectionState(ConnectionState connState);
 
@@ -117,14 +246,40 @@ public:
 
   static void DWCFree(u32 unk, void* block);
 
-  static void updateDWCServersAsyncCallback(u32 r3, u32 r4,
-                                            NetManager* netManager);
+  static void loginCallback(u32 r3, u32 r4, NetManager* netManager);
+
+  static void connectionCleanupCallback();
+
+  inline static s32 totalPlayersHelper();
+
+  static bool isTotalPlayersValid(DWCConnectionUserData* playerCountPtr,
+                                  NetManager* self);
+
+  static void updateFriendStatusCallback(u32 r3, u32 r4, void* self);
+
+  static void setFriendRosterChangedCallback(u32 r3, u32 r4,
+                                             NetManager* netManager);
+
+  static void BLR_80658918();
 
   static void DWCSetBuddyFriendCallback(u32 r3, NetManager* netManager);
+
+  void initRecvPacketBuffer();
+
+  void handleAidDisconnect(u8 aid);
+
+  void connect();
 
   void initMMInfos();
 
   void resetFriends();
+
+  // unused ?
+  void buildHeader(u8 aid);
+
+  void calcOutgoingCRC32(u8 aid);
+
+  void processRACEPacket(u8 aid, RacePacketHeader* header, u32 size);
 
   void updateAidMapping();
 
@@ -138,31 +293,74 @@ public:
 
   FriendJoinableStatus getFriendJoinableStatus(u32 friendIdx) const;
 
-  static NetManager* getInstance() { return spInstance; }
+  void updateStatusDatas();
+
+  struct MatchMakingInfo;
+
+  inline MatchMakingInfo* getMMInfo() {
+    return &m_matchMakingInfos[m_currMMInfo];
+  }
+
+  inline u8 getMyAid() { return getMMInfo()->myAid; }
+
+  inline bool hasDisconnected(u32 playerId);
+
+  inline NetManager::PacketHolder* getSendRH1PacketHolder(u8 aid) {
+    return m_sendRACEPackets[m_lastSendIdx[aid]][aid]
+        ->getRaceHeader1PacketHolder();
+  }
+
+  inline NetManager::PacketHolder* getRecvRH1PacketHolder(u8 aid) {
+    NetManager* netManager = NetManager::Instance();
+
+    NetManager::RACEPacketHolder** row =
+        (NetManager::RACEPacketHolder**)
+            netManager->m_recvRACEPackets[netManager->m_lastRecvIdx[aid][1]];
+    return row[aid]->m_packets[1];
+  }
+
+  inline NetManager::PacketHolder* getSendRH2PacketHolder(u8 aid) {
+    return m_sendRACEPackets[m_lastSendIdx[aid]][aid]
+        ->getRaceHeader2PacketHolder();
+  }
+
+  inline NetManager::PacketHolder* getSendSelectPacketHolder(u8 aid) {
+    return m_sendRACEPackets[m_lastSendIdx[aid]][aid]->getSelectPacketHolder();
+  }
+
+  inline NetManager::PacketHolder* getRecvSelectPacketHolder(u8 aid) {
+    return m_recvRACEPackets[m_lastRecvIdx[aid][SELECTPacketId]][aid]
+        ->getSelectPacketHolder();
+  }
+
+  inline NetManager::PacketHolder* getSendRACEDATAPacketHolder(u8 aid) {
+    return m_sendRACEPackets[m_lastSendIdx[aid]][aid]
+        ->getRaceDataPacketHolder();
+  }
+
+  static NetManager* Instance() { return spInstance; }
   // reason this exists is since the local player count must be in the highest
   // byte to be passed off to DWC functions
-  struct LocalPlayerCountDWC {
-    u8 localPlayerCount;
-    u8 _1[0x4 - 0x1];
-  };
-  static_assert(sizeof(LocalPlayerCountDWC) == 0x4);
 
-  struct MatchMakingInfo {
-    u64 m_MMStartTime;          // gets set upon match making 0x0
-    u32 m_numConnectedConsoles; // number of non guest players 0x8
-    u32 m_playerCount;          // players in room (includes guests) 0xC
-    u32 m_fullAidBitmap;        // # bits is equal to num consoles, all 1 0x10
-    u32 m_directConnectedAidBitmap; // Aids I'm connected to. It will fill up to
-                                    // equal m_fullAidBitmap by the end of MM as
-                                    // I connect to other users. 0x14
-    u32 m_roomId;                   // Also known as groupId by DWC 0x18
-    s32 m_hostFriendId;             // -1 if host isn't a friend. 0x1C
-    u8 m_localPlayerCount;          // 0x20
-    u8 m_myAid;                     // 0x21
-    u8 m_hostAid;                   // value returned by DWC_GetServerAid() 0x22
-    LocalPlayerCountDWC m_localPlayerCounts[MAX_PLAYER_COUNT]; // 0x23
-    bool
-        m_matchingSuspended; // set when entering mm, cleared shortly after 0x53
+  struct MatchMakingInfo {       // 0x0038
+    OSTime matchMakingStartTime; // gets set upon match making 0x0 / 0x0038
+    u32 numConnectedConsoles;    // number of non guest players 0x8  / 0x0040
+    u32 playerCount;   // players in room (includes guests) 0xC / 0x0044
+    u32 availableAids; // # bits is equal to num consoles, all 1 0x10 / 0x0048
+    u32 directConnectedAidBitmap; // Aids I'm connected to. It will fill up to
+                                  // equal availableAids by the end of MM as
+                                  // I connect to other users. 0x14 / 0x004c
+    u32 roomId;                   // Also known as groupId by DWC 0x18 / 0x0050
+    s32 hostFriendId;             // -1 if host isn't a friend. 0x1C / 0x0054
+    u8 localPlayerCount;          // 0x20 / 0x0058
+    u8 myAid;                     // 0x21 / 0x0059
+    u8 hostAid; // value returned by DWC_GetServerAid() 0x22 / 0x005a
+    DWCConnectionUserData localPlayerCounts[MAX_PLAYER_COUNT]; // 0x23 / 0x005b
+    // When matching is suspended, friends aren't able to join your room.
+    // This gets set to true during the voting screen in public rooms
+    // and transitioning to opening a private room, both cases friends can't
+    // join.
+    bool isMatchMakingSuspended; // 0x53 / 0x008b
     u8 _54[0x58 - 0x54];
   };
   static_assert(sizeof(MatchMakingInfo) == 0x58);
@@ -175,31 +373,34 @@ public:
   EGG::TaskThread* m_taskThread; // runs the mainLoop
   ConnectionState m_connectionState;
   DisconnectInfo m_disconnectInfo;
-  u8 _0034[0x0038 - 0x0034]; // padding?
-  MatchMakingInfo m_matchMakingInfos[2];
+  u8 _0034[0x0038 - 0x0034];             // padding?
+  MatchMakingInfo m_matchMakingInfos[2]; // 0x0038 - 0x00e8
   RoomType m_roomType;
-  UnkMMSuspension m_mmSuspension;
-  // points to RACE packets to be sent, two per aid
-  RACEPacketHolder* m_sendRACEPackets[2][MAX_PLAYER_COUNT];
-  // points to RACE packets to be recieved, two per aid
-  RACEPacketHolder* m_recvRACEPackets[2][MAX_PLAYER_COUNT];
-  // The RACE packet to be sent, formed from m_sendRACEPackets, one per aid
-  PacketHolder<void*>* m_outgoingRACEPacket[MAX_PLAYER_COUNT];
-  u64 m_timeOfLastSentRACE[MAX_PLAYER_COUNT];
-  u64 m_timeOfLastRecvRACE[MAX_PLAYER_COUNT];
-  u64 m_timeBetweenSendingPackets[MAX_PLAYER_COUNT]; // time bewteen sent
-                                                     // packets per aid
-  u64 m_timeBetweenRecvPackets[MAX_PLAYER_COUNT];    // time between recieved
-                                                     // packets per aid
-  u8 m_aidLastSentTo; // Aid of last player we sent to
-  u8 m_recvRACEPacketBuffer[MAX_PLAYER_COUNT][0x2e0];
-  u8 _25e1[0x25e4 - 0x25e1]; // padding
-  StatusData m_myStatusData;
+  VoteMatchMakingSuspended m_voteMMSuspension;
+  // points to RACE packets to be sent, two per aid / 0xf0
+  NetManager::RACEPacketHolder* m_sendRACEPackets[2][MAX_PLAYER_COUNT];
+  // points to RACE packets to be recieved, two per aid / 0x150
+  NetManager::RACEPacketHolder* m_recvRACEPackets[2][MAX_PLAYER_COUNT];
+  // The RACE packet to be sent, formed from m_sendRACEPackets, one per aid /
+  // 0x1b0
+  NetManager::PacketHolder* m_outgoingRACEPacket[MAX_PLAYER_COUNT];
+  OSTime m_timeOfLastSentRACE[MAX_PLAYER_COUNT]; // 0x1e0
+  OSTime m_timeOfLastRecvRACE[MAX_PLAYER_COUNT]; // 0x240
+  OSTime
+      m_timeBetweenSendingPackets[MAX_PLAYER_COUNT]; // time bewteen sent
+                                                     // packets per aid / 0x2a0
+  OSTime m_timeBetweenRecvPackets[MAX_PLAYER_COUNT]; // time between recieved
+                                                     // packets per aid / 0x300
+  u8 m_aidLastSentTo; // Aid of last player we sent to / 0x360
+  u8 m_recvRACEPacketBuffer[MAX_PLAYER_COUNT][0x2e0]; // 0x361
+  u8 _25e1[0x25e4 - 0x25e1];                          // padding
+  StatusData m_myStatusData;                          // 0x25e4
   FriendInfo m_friends[MAX_FRIEND_COUNT];
-  bool m_friendStatusChanged;      // set when a friend adds back 0x2753
+  bool m_friendRosterChanged;      // set when a friend adds back 0x2753
   bool m_shutdownScheduled;        // set when logging off // 0x2755
   bool m_shouldUpdateFriendStatus; // 0x2756
   bool m_hasEjectedDisk;           // triggers a dc screen 0x2757
+  bool m_profanityCheckFailed;     // 0x2758
   u8 _2759[0x275c - 0x2759];
   s32 m_badWordsNum; // number of bad words found in the profanity check
   u32 m_disconnectPenalty;
@@ -208,11 +409,11 @@ public:
   u32 m_lastSendIdx[MAX_PLAYER_COUNT]; // idx of m_sendRACEPackets last sent per
                                        // aid
   // idx of m_recvRACEPackets last recvieved per packet per aid
-  u32 m_lastRecvIdx[MAX_PLAYER_COUNT][8];
-  s32 m_currMMInfo; // Current MM info used
-  u8 m_playerIdToAidMapping[MAX_PLAYER_COUNT];
-  u32 m_disconnectedAids;      // disconnected if 1 << aid is 1
-  u32 m_disconnectedPlayerIds; // disconnected if 1 << pid is 1
+  u32 m_lastRecvIdx[MAX_PLAYER_COUNT][8];      // 0x279c
+  u32 m_currMMInfo;                            // Current MM info used 0x291c
+  u8 m_playerIdToAidMapping[MAX_PLAYER_COUNT]; // 0x2920
+  u32 m_disconnectedAids;      // disconnected if 1 << aid is 1 // 0x292c
+  u32 m_disconnectedPlayerIds; // disconnected if 1 << pid is 1 // 0x2930
   u8 _2934[0x295c - 0x2934];   // elo based MM struct
   u8 _295c[0x29c8 - 0x295c];   // some timers
 
@@ -220,7 +421,10 @@ public:
 };
 static_assert(sizeof(NetManager) == 0x29c8);
 } // namespace Net
+static void GPReversBuddiesListCallback(GPConnection* connection, void* arg,
+                                        void* self);
 
+static void SetGPError(GPResult result);
 // MIT License
 
 // Copyright (c) 2023 MelgMKW

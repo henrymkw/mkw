@@ -1,8 +1,8 @@
-#include "SELECT.hpp"
+#include "Select.hpp"
 
 namespace Net {
 
-const u8* SELECTHandler::getPlayerIdToAidMapping() const {
+const u8* SelectHandler::getPlayerIdToAidMapping() const {
   return m_sendPacket.m_playerIdToAidMapping;
 }
 

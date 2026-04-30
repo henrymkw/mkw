@@ -1,4 +1,4 @@
-#include "RACEHEADER1.hpp"
+#include "RH1.hpp"
 
 #include "net/NetManager.hpp"
 
@@ -6,17 +6,17 @@
 
 namespace Net {
 
-void RACEHEADER1Handler::setPrepared() {
+void RH1Handler::setPrepared() {
   // setting this to true allows the main logic of this class's calc() to run()
   m_prepared = true;
 }
 
-s32 RACEHEADER1Handler::getCourseId() const {
+s32 RH1Handler::getCourseId() const {
   s32 otherCourseId;
   u32 adjustedCourseId;
   s32 result;
   for (u8 i = 0; i < MAX_PLAYER_COUNT; i++) {
-    const RACEHEADER1Data* data = &m_RH1Datas[i];
+    const RH1Player* data = &m_RH1Players[i];
     adjustedCourseId = data->courseId;
     if (adjustedCourseId <= 0x42) {
       adjustedCourseId = data->courseId;
@@ -25,7 +25,7 @@ s32 RACEHEADER1Handler::getCourseId() const {
       otherCourseId = -1;
     }
 
-    if (otherCourseId != -1 && data->_00 != 0) {
+    if (otherCourseId != -1 && data->timer != 0) {
       if (adjustedCourseId <= 0x42) {
         return data->courseId;
       } else {
@@ -37,21 +37,21 @@ s32 RACEHEADER1Handler::getCourseId() const {
 }
 
 // https://decomp.me/scratch/zMnhg
-bool RACEHEADER1Handler::courseValid() const {
+bool RH1Handler::courseValid() const {
   bool result;
   s32 adjustedCourseId;
   System::CourseId courseId;
 
-  if (!NetManager::getInstance()->hasFoundMatch()) {
+  if (!NetManager::Instance()->hasFoundMatch()) {
     result = false;
   } else {
-    if (m_unk8 != 0) {
-      NetManager* netManager = NetManager::getInstance();
+    if (m_aidsInRace != 0) {
+      NetManager* netManager = NetManager::Instance();
       u32 myAidSlot =
-          1 << netManager->m_matchMakingInfos[netManager->m_currMMInfo].m_myAid;
+          1 << netManager->m_matchMakingInfos[netManager->m_currMMInfo].myAid;
       u32 fullBitmap = netManager->m_matchMakingInfos[netManager->m_currMMInfo]
-                           .m_fullAidBitmap;
-      myAidSlot = fullBitmap & (m_unk8 | myAidSlot);
+                           .availableAids;
+      myAidSlot = fullBitmap & (m_aidsInRace | myAidSlot);
       result = (fullBitmap == myAidSlot);
     } else {
       result = false;

@@ -175,11 +175,11 @@ net/NetManager.cpp:
 	.data       start:0x808C0960 end:0x808C0998
 	.bss        start:0x809C1F58 end:0x809C20E0
 
-net/packets/ROOM.cpp:
+net/records/Room.cpp:
 	.text       start:0x8065AA88 end:0x8065B354
 	.bss        start:0x809C20E0 end:0x809C20F0
 
-net/packets/EVENT.cpp:
+net/records/Event.cpp:
 	.text       start:0x8065B4E8 end:0x8065C0EC
 	.bss        start:0x809C20F0 end:0x809C20F8
 
@@ -187,15 +187,15 @@ net/packets/ITEM.cpp:
 	.text       start:0x8065C0EC end:0x8065FE8C
 	.bss        start:0x809C20F8 end:0x809C2100
 
-net/packets/SELECT.cpp:
+net/records/Select.cpp:
 	.text       start:0x8065FE8C end:0x80662778
 	.bss        start:0x809C2100 end:0x809C2108
 
-net/packets/USER.cpp:
+net/records/User.cpp:
 	.text       start:0x80662778 end:0x80663194
 	.bss        start:0x809C2108 end:0x809C2110
 
-net/packets/RACEHEADER1.cpp:
+net/records/RH1.cpp:
 	.text       start:0x80663AA4 end:0x80665538
 	.bss        start:0x809C2118 end:0x809C2120
 
