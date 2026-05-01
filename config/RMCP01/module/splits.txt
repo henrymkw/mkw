@@ -183,7 +183,7 @@ net/records/Event.cpp:
 	.text       start:0x8065B4E8 end:0x8065C0EC
 	.bss        start:0x809C20F0 end:0x809C20F8
 
-net/packets/ITEM.cpp:
+net/packets/Item.cpp:
 	.text       start:0x8065C0EC end:0x8065FE8C
 	.bss        start:0x809C20F8 end:0x809C2100
 
@@ -194,6 +194,10 @@ net/records/Select.cpp:
 net/records/User.cpp:
 	.text       start:0x80662778 end:0x80663194
 	.bss        start:0x809C2108 end:0x809C2110
+
+net/FriendRosterManager.cpp:
+	.text       start:0x80663194 end:0x80663AA4
+	.bss        start:0x809C2110 end:0x809C2118
 
 net/records/RH1.cpp:
 	.text       start:0x80663AA4 end:0x80665538
