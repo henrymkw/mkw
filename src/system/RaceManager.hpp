@@ -177,6 +177,12 @@ public:
   u16 getBattleTimeLimit();
   KrtFile** getKrtFile();
 
+  void stopPlayer(u8 playerId);
+
+  RaceManagerPlayer* getPlayer(u8 playerId) {
+    return players[playerId];
+  }
+
   Util::Random* random1;
   Util::Random* random2;
   RaceManagerPlayer** players;
