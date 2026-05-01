@@ -2,7 +2,7 @@
 
 #include "net/NetManager.hpp"
 
-#include <rfl/RFL_WiFi.h>
+#include <rfl/RFL_System.h>
 
 namespace Net {
 
