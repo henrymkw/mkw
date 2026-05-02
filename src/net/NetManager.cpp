@@ -15,8 +15,8 @@
 #include <dwc/common/dwc_error.h>
 #include <dwc/common/dwc_init.h>
 #include <dwc/core/dwc_friend.h>
+#include <dwc/core/dwc_main.h>
 #include <dwc/core/dwc_match.h>
-#include <dwc/core/dwci_match.h>
 #include <dwc/core/dwc_transport.h>
 
 #include <rvl/net.h>
@@ -304,7 +304,7 @@ void NetManager::updateFriendsProfiles() {
   // Reset friend's profileIds
   friendRosterManager->resetProfileIds();
 
-  DWCAccFriendData* friendData = friendRosterManager->m_dwcAccFriendData;
+  DWCstAccFriendData* friendData = friendRosterManager->m_dwcAccFriendData;
 
   // This loop repopulates the friendProfileId array
   for (u32 i = 0; i < MAX_FRIEND_COUNT; i++) {
@@ -319,7 +319,7 @@ void NetManager::updateFriendsProfiles() {
   // This sets up getting friend profileIds.
   // The callback updates friend structs upon gettomg a responce
   GPResult result = gpGetReversBuddiesList(
-      DWCiGetMatchContextExt()->connection,
+      DWCi_GetMatchCntExt()->connection,
       friendRosterManager->m_friendsGSProfileIds, numTargets, GP_NON_BLOCKING,
       GPReversBuddiesListCallback, // the cb updates friend structs upon getting
                                    // a responce.
@@ -690,8 +690,8 @@ s32 NetManager::totalPlayersHelper() {
 bool NetManager::isTotalPlayersValid(DWCConnectionUserData* playerCountPtr,
                                      NetManager* self) {
 
-  bool isValid = ((NetManager::totalPlayersHelper() +
-                   playerCountPtr->localPlayerCount) <= 12);
+  bool isValid =
+      ((NetManager::totalPlayersHelper() + playerCountPtr->_0) <= 12);
 
   NetManager::connectionCleanupCallback();
 

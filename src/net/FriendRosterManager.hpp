@@ -4,7 +4,6 @@
 
 #include <rvl/os/osMutex.h>
 #include <dwc/core/dwc_account.h>
-#include <dwc/core/dwc_context.h>
 
 #include <gamespy/GP/gp.h>
 
@@ -20,12 +19,12 @@ public:
   }
 
   void* vtable;
-  OSMutex m_mutex;                          // 0x004
-  DWCAccUserData m_dwcUserData[2];          // 0x01c, 0x05c
-  DWCAccFriendData m_dwcAccFriendData[30];  // 0x9c
-  DWCAccFriendData m_dwcAccFriendData2[30]; // 0x204
-  GPProfile m_friendsGSProfileIds[30];      // 0x36c
-  u64* m_pFriendCodes;                      // 0x3e4
+  OSMutex m_mutex;                            // 0x004
+  DWCstAccUserData m_dwcUserData[2];          // 0x01c, 0x05c
+  DWCstAccFriendData m_dwcAccFriendData[30];  // 0x9c
+  DWCstAccFriendData m_dwcAccFriendData2[30]; // 0x204
+  GPProfile m_friendsGSProfileIds[30];        // 0x36c
+  u64* m_pFriendCodes;                        // 0x3e4
   static FriendRosterManager* Instance() { return spInstance; }
   static FriendRosterManager* spInstance;
 };

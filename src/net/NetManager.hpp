@@ -23,8 +23,8 @@
 
 #include <egg/core/eggExpHeap.hpp>
 #include <egg/core/eggTaskThread.hpp>
-#include <dwc/core/dwc_context.h>
 #include <dwc/core/dwc_friend.h>
+#include <dwc/core/dwc_match.h>
 
 #include <gamespy/GP/gp.h>
 

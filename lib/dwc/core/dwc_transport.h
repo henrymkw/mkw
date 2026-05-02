@@ -6,7 +6,7 @@
 extern "C" {
 #endif
 
-BOOL DWC_SendUnreliable(u8 aid, void *packet, u32 size);
+BOOL DWC_SendUnreliable(u8 aid, void* packet, u32 size);
 
 #ifdef __cplusplus
 }
