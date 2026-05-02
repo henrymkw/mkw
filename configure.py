@@ -819,7 +819,7 @@ config.libs = [
             Object(NonMatching, "net/NetManager.cpp"),
             Object(NonMatching, "net/records/Room.cpp"),
             Object(NonMatching, "net/records/Event.cpp"),
-            Object(NonMatching, "net/packets/ITEM.cpp"),
+            Object(NonMatching, "net/packets/Item.cpp"),
             Object(NonMatching, "net/records/Select.cpp"),
             Object(NonMatching, "net/records/User.cpp"),
             Object(NonMatching, "net/records/RH1.cpp"),
