@@ -3,6 +3,7 @@
 #include <rk_types.h>
 #include <rk_common.h>
 
+#include "net/AidBitmap.hpp"
 #include "net/records/Event.hpp"
 #include "net/records/RaceData.hpp"
 #include "net/records/RH1.hpp"
@@ -107,8 +108,6 @@ public:
 
   inline bool isAidSlotInRoom(u32 aidSlot) const;
 
-  inline bool isPlayerDisconnected(u32 playerId) const;
-
   bool isPlayerConnected(u32 playerId);
 
   bool isPlayerLocal(u32 playerId);
@@ -135,7 +134,7 @@ private:
   // Bit field indexed by aid that indicates whether that aid has loaded into
   // the race. This is used to determine when to count the startdown and the
   // type of records to send to a given aid
-  u32 m_aidsLoadedIntoRace;
+  AidBitmap<u8> m_aidsLoadedIntoRace;
 
   // Bit field indexed by aid. 0 indicates last sent a Room, 1 indicates last
   // sent Select

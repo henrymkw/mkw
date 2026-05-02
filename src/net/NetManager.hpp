@@ -8,6 +8,7 @@
 #include <rk_types.h>
 #include <decomp.h>
 
+#include "net/AidBitmap.hpp"
 #include "net/DisconnectInfo.hpp"
 #include "net/FriendInfo.hpp"
 #include "net/records/RacePacketHeader.hpp"
@@ -282,13 +283,24 @@ public:
 
   struct MatchMakingInfo;
 
+  inline const MatchMakingInfo* currMMInfo() const {
+    return &m_matchMakingInfos[m_currMMInfo];
+  }
   inline MatchMakingInfo* getMMInfo() {
     return &m_matchMakingInfos[m_currMMInfo];
   }
 
   inline u8 getMyAid() { return getMMInfo()->myAid; }
 
-  inline bool hasDisconnected(u32 playerId);
+  inline bool isAidUsed(u8 aid) {
+    return getMMInfo()->availableAids.on(aid);
+  }
+
+  inline bool isPlayerDisconnected(u32 playerId) {
+    return m_disconnectedPlayerIds.on(playerId);
+  }
+  
+
 
   inline RacePacketHolder* lastRecvRacePacket(u8 aid, u32 type) {
     return m_recvRacePackets[m_lastRecvIdx[aid][type]][aid];
@@ -327,10 +339,10 @@ public:
 
   struct MatchMakingInfo {       // 0x0038
     OSTime matchMakingStartTime; // gets set upon match making 0x0 / 0x0038
-    u32 numConnectedConsoles;    // number of non guest players 0x8  / 0x0040
+    u32 numAids;    // number of non guest players 0x8  / 0x0040
     u32 playerCount;   // players in room (includes guests) 0xC / 0x0044
-    u32 availableAids; // # bits is equal to num consoles, all 1 0x10 / 0x0048
-    u32 directConnectedAidBitmap; // Aids I'm connected to. It will fill up to
+    AidBitmap<u8> availableAids; // # bits is equal to num consoles, all 1 0x10 / 0x0048
+    AidBitmap<u8> directConnectedAidBitmap; // Aids I'm connected to. It will fill up to
                                   // equal availableAids by the end of MM as
                                   // I connect to other users. 0x14 / 0x004c
     u32 roomId;                   // Also known as groupId by DWC 0x18 / 0x0050
@@ -395,8 +407,8 @@ public:
   u32 m_lastRecvIdx[MAX_PLAYER_COUNT][8];      // 0x279c
   u32 m_currMMInfo;                            // Current MM info used 0x291c
   u8 m_playerIdToAidMapping[MAX_PLAYER_COUNT]; // 0x2920
-  u32 m_disconnectedAids;      // disconnected if 1 << aid is 1 // 0x292c
-  u32 m_disconnectedPlayerIds; // disconnected if 1 << pid is 1 // 0x2930
+  AidBitmap<u8> m_disconnectedAids;      // disconnected if 1 << aid is 1 // 0x292c
+  AidBitmap<u32> m_disconnectedPlayerIds; // disconnected if 1 << pid is 1 // 0x2930
   u8 _2934[0x295c - 0x2934];   // elo based MM struct
   u8 _295c[0x29c8 - 0x295c];   // some timers
 

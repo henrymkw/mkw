@@ -28,10 +28,6 @@ void MiscPacketHandler::resetSendRH2Records() {
   }
 }
 
-void MiscPacketHandler::clearAidInRace(u32 aid) {
-  m_aidsLoadedIntoRace &= ~(1 << aid);
-}
-
 MiscPacketHandler::MiscPacketHandler()
     : m_isPrepared(0), scheduleDisconnect(false), m_aidsLoadedIntoRace(0),
       m_aidsLastSentRoomOrSelect(0), m_aidsShouldStop(0), m_myLagFrames(0),
@@ -72,9 +68,9 @@ void MiscPacketHandler::updateAsSpectator() {
     // 3. The aid isnt in fullRoomBitmap (meaning they don't exist)
     // 4. The aid is set in m_aidsShouldStop
 
-    if (isPlayerDisconnected(playerId) ||
+    if (NetManager::Instance()->isPlayerDisconnected(playerId) ||
         (aid == NetManager::Instance()->getMyAid()) ||
-        (isAidNotInRoomNoHelper(aid)) || ((m_aidsShouldStop & 1 << aid) != 0)) {
+        (!NetManager::Instance()->isAidUsed(aid)) || ((m_aidsShouldStop & 1 << aid) != 0)) {
       System::RaceManager::spInstance->stopPlayer(playerId);
     }
   }
@@ -85,29 +81,30 @@ bool MiscPacketHandler::isEveryoneInRace() const {
   if (!NetManager::Instance()->hasFoundMatch()) {
     return true;
   }
-
-  System::RaceManager* raceManager = System::RaceManager::spInstance;
-  NetManager* netMgr = NetManager::Instance();
-
-  u32 bitmap2 = m_aidsLoadedIntoRace;
-  bitmap2 |= 1 << netMgr->getMMInfo()->myAid;
-
-  u32 bitmap = 0;
+  
+  AidBitmap<u8> aidsInRace = m_aidsLoadedIntoRace;
+  aidsInRace.set(NetManager::Instance()->getMyAid());
+  AidBitmap<u8> availableAids;
 
   u8 playerCount = System::RaceConfig::spInstance->mRaceScenario.mPlayerCount;
   for (u32 playerId = 0; playerId < playerCount;
-       playerId++) { // This loop is inlined LOL
-    if (!isPlayerDisconnected(playerId) &&
-        (raceManager->getPlayer(playerId)->flags & System::DISCONNECTED) == 0) {
-      u8 aid = getAidFromPlayerId(playerId);
-      u32 aidSlot = 1 << aid;
-      if ((aidSlot & netMgr->getMMInfo()->availableAids)) {
-        bitmap |= aidSlot;
-      }
+       playerId++) {
+    if (NetManager::Instance()->isPlayerDisconnected(playerId)) {
+      continue;
+
+    }
+
+    if ((System::RaceManager::spInstance->getPlayer(playerId)->flags & System::DISCONNECTED)) {
+      continue;
+    }
+    u32 aid = getAidFromPlayerId(playerId);
+    if (NetManager::Instance()->isAidUsed(aid)) {
+      availableAids.set(aid);
     }
   }
 
-  return (bitmap & bitmap2) == bitmap;
+  // TODO: Fix & hack
+  return (availableAids & aidsInRace) == availableAids;
 }
 
 // Scratch: https://decomp.me/scratch/zBfVq
@@ -115,7 +112,7 @@ u32 MiscPacketHandler::getPlayerElapsedTimeSinceRaceStart(u32 playerId) {
   NetManager* netManager = NetManager::Instance();
 
   u8 aid = getAidFromPlayerId(playerId);
-  if (isAidInRoom(aid)) {
+  if (NetManager::Instance()->isAidUsed(aid)) {
     // u32 lastRecvIdx = netManager->m_lastRecvIdx[aid][1];
     u32 lastRecvIdx = netManager->m_lastRecvIdx[aid][1];
 
@@ -140,7 +137,8 @@ u32 MiscPacketHandler::getPlayerElapsedTimeSinceRaceStart(u32 playerId) {
 }
 
 u16 MiscPacketHandler::getAidLagFrames(u8 aid) {
-  if (isAidInRoom(aid)) {
+  // if (isAidInRoom(aid)) {
+  if (NetManager::Instance()->isAidUsed(aid)) {
     if (aid == NetManager::Instance()->getMMInfo()->myAid) {
       return m_myLagFrames;
     }
@@ -164,66 +162,14 @@ u32 MiscPacketHandler::getEventFreeSpace() {
   return EventHandler::Instance()->m_freeSpaceInSendBuffer;
 }
 
-bool MiscPacketHandler::isPlayerIdInRoom(u32 playerId) {
-  // When the aid's bit is set, they're in the room (TODO: Does this update with
-  // disconnections?)
-  return ((1 << getAidFromPlayerId(playerId) &
-           NetManager::Instance()
-               ->m_matchMakingInfos[NetManager::Instance()->m_currMMInfo]
-               .availableAids));
-}
-
-bool MiscPacketHandler::isAidNotInRoom(u32 aid) {
-  // When the aid's bit is set, they're in the room (TODO: Does this update with
-  // disconnections?)
-  return ((1 << aid & NetManager::Instance()->getMMInfo()->availableAids) == 0);
-}
-
-bool MiscPacketHandler::isAidInRoom(u32 aid) const {
-  // When the aid's bit is set, they're in the room (TODO: Does this update with
-  // disconnections?)
-  return ((1 << aid & NetManager::Instance()->getMMInfo()->availableAids) != 0);
-}
-
-bool MiscPacketHandler::isAidInRoomNoHelper(u32 aid) const {
-  // When the aid's bit is set, they're in the room (TODO: Does this update with
-  // disconnections?)
-  return (
-      (1 << aid & NetManager::Instance()
-                      ->m_matchMakingInfos[NetManager::Instance()->m_currMMInfo]
-                      .availableAids) != 0);
-}
-
-bool MiscPacketHandler::isAidNotInRoomNoHelper(u32 aid) const {
-  // When the aid's bit is set, they're in the room (TODO: Does this update with
-  // disconnections?)
-  return (
-      (1 << aid & NetManager::Instance()
-                      ->m_matchMakingInfos[NetManager::Instance()->m_currMMInfo]
-                      .availableAids) == 0);
-}
-
-bool MiscPacketHandler::isAidSlotInRoom(u32 aidSlot) const {
-  // When the aid's bit is set, they're in the room (TODO: Does this update with
-  // disconnections?)
-  return (
-      (aidSlot & NetManager::Instance()
-                     ->m_matchMakingInfos[NetManager::Instance()->m_currMMInfo]
-                     .availableAids) != 0);
-}
-
-bool MiscPacketHandler::isPlayerDisconnected(u32 playerId) const {
-  // When playerId bit is set, they were in the room but disconnected. When its
-  // 0, they aren't disconnected.
-  return (1 << playerId & NetManager::Instance()->m_disconnectedPlayerIds);
-}
-
 bool MiscPacketHandler::isPlayerConnected(u32 playerId) {
   // Ensure playerId is valid (less than the playerCount)
   if (playerId < System::RaceConfig::spInstance->mRaceScenario.mPlayerCount) {
     // Player is connected if their aid is in the room, and they haven't
     // disconnected.
-    return (isPlayerIdInRoom(playerId) && !isPlayerDisconnected(playerId));
+
+    // return (isPlayerIdInRoom(playerId) && !isPlayerDisconnected(playerId));
+    return (NetManager::Instance()->isAidUsed(getAidFromPlayerId(playerId)) && !NetManager::Instance()->isPlayerDisconnected(playerId));
   }
   return false;
 }
@@ -253,7 +199,7 @@ void MiscPacketHandler::stopDisconnectedPlayers() {
     // Stop a player locally if they have disconnected or they're not in the
     // full bitmap
     u8 aid = getAidFromPlayerId(playerId);
-    if (isPlayerDisconnected(playerId) || isAidNotInRoom(aid)) {
+    if (NetManager::Instance()->isPlayerDisconnected(playerId) || NetManager::Instance()->isAidUsed(aid)) {
       System::RaceManager::spInstance->stopPlayer(playerId);
     }
   }
@@ -264,9 +210,9 @@ void MiscPacketHandler::stopPlayersAsSpectator() {
        playerId < System::RaceConfig::spInstance->mRaceScenario.mPlayerCount;
        playerId++) {
     u8 aid = getAidFromPlayerId(playerId);
-    if (isPlayerDisconnected(playerId) ||
+    if (NetManager::Instance()->isPlayerDisconnected(playerId) ||
         aid == NetManager::Instance()->getMMInfo()->myAid ||
-        isAidNotInRoom(aid) || (m_aidsShouldStop & 1 << aid) != 0) {
+         NetManager::Instance()->isAidUsed(aid) || (m_aidsShouldStop & 1 << aid) != 0) {
       System::RaceManager::spInstance->stopPlayer(playerId);
     }
   }
@@ -278,7 +224,8 @@ void MiscPacketHandler::updateBitfields() {
 
     u32 aidSlot = 1 << (u8)aid;
 
-    if (isAidSlotInRoom(aidSlot) && (u32)aid != netManager->getMyAid()) {
+    // if (isAidSlotInRoom(aidSlot) && (u32)aid != netManager->getMyAid()) {
+    if (netManager->isAidUsed(aid) && (u32)aid != netManager->getMyAid()) {
       // RacePacketHolder **row =
       // (RacePacketHolder**)netManager->m_recvRacePackets[netManager->m_lastRecvIdx[aid][1]];
       // RecordHolder *holder = row[aid]->m_records[1];

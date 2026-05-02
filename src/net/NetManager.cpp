@@ -356,12 +356,12 @@ bool NetManager::isConnectionStateIdle() const {
 bool NetManager::hasFoundMatch() const {
   bool inMatch = false;
 
-  bool isMyAidInMatch = (1 << m_matchMakingInfos[m_currMMInfo].myAid) &
-                        m_matchMakingInfos[m_currMMInfo].availableAids;
+  u8 myAid = currMMInfo()->myAid;
+  bool isMyAidInMatch = m_matchMakingInfos[m_currMMInfo].availableAids.on(myAid);
   // were in a match if my aid is in the room and we have connected to another
   // console
   if (isMyAidInMatch &&
-      m_matchMakingInfos[m_currMMInfo].numConnectedConsoles > 1) {
+     m_matchMakingInfos[m_currMMInfo].numAids > 1) {
     inMatch = true;
   }
   return inMatch;
@@ -414,7 +414,7 @@ void NetManager::sendRacePacket() {
     MatchMakingInfo* mmInfo = getMMInfo();
 
     // skip if the aid is used or the aid is mine
-    if ((1 << lastAid & mmInfo->availableAids) == 0) {
+    if ((mmInfo->availableAids.on(lastAid)) == 0) {
       lastAid++;
       continue;
     }
@@ -673,10 +673,10 @@ void NetManager::DWCSetBuddyFriendCallback(u32 r3, NetManager* netManager) {
 void NetManager::initMMInfos() {
   for (u32 i = 0; i < ARRAY_SIZE(m_matchMakingInfos); i++) {
     m_matchMakingInfos[i].matchMakingStartTime = 0;
-    m_matchMakingInfos[i].numConnectedConsoles = 0;
+    m_matchMakingInfos[i].numAids = 0;
     m_matchMakingInfos[i].playerCount = 0;
-    m_matchMakingInfos[i].availableAids = 0;
-    m_matchMakingInfos[i].directConnectedAidBitmap = 0;
+    m_matchMakingInfos[i].availableAids.reset();
+    m_matchMakingInfos[i].directConnectedAidBitmap.reset();
     m_matchMakingInfos[i].roomId = 0;
     m_matchMakingInfos[i].hostFriendId = -1;
     m_matchMakingInfos[i].myAid = -1;
@@ -757,8 +757,8 @@ void NetManager::resetPlayerIdToAidMap() {
 }
 
 void NetManager::updateAidMapping() {
-  m_disconnectedPlayerIds = 0;
-  m_disconnectedAids = 0;
+  m_disconnectedPlayerIds.reset();
+  m_disconnectedAids.reset();
 
   if (RH1Handler::Instance()) {
     const u8* RH1AidMapping = RH1Handler::Instance()->getPlayerIdToAidMapping();
@@ -788,9 +788,12 @@ s32 NetManager::getLocalId(u32 hudId) const {
 }
 
 bool NetManager::myAidInRoom() const {
+  /*
   u32 fullMap = m_matchMakingInfos[m_currMMInfo].availableAids;
   u8 myAid = m_matchMakingInfos[m_currMMInfo].myAid;
   return (1 << myAid & fullMap);
+  */
+  return m_matchMakingInfos[m_currMMInfo].availableAids.on(m_matchMakingInfos[m_currMMInfo].myAid);
 }
 
 s32 NetManager::getLocalPlayerId(u32 hudId) const {
@@ -933,10 +936,6 @@ void NetManager::updateStatusDatas() {
     }
     m_shouldUpdateFriendStatus = false;
   }
-}
-
-bool NetManager::hasDisconnected(u32 playerId) {
-  return (1 << playerId & m_disconnectedPlayerIds) != 0;
 }
 
 RecordHolder::RecordHolder(u32 bufferSize) {
