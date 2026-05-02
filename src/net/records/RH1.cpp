@@ -45,13 +45,13 @@ bool RH1Handler::courseValid() const {
   if (!NetManager::Instance()->hasFoundMatch()) {
     result = false;
   } else {
-    if (m_aidsInRace != 0) {
+    if (m_receivedRH1FromAid != 0) {
       NetManager* netManager = NetManager::Instance();
       u32 myAidSlot =
           1 << netManager->m_matchMakingInfos[netManager->m_currMMInfo].myAid;
       u32 fullBitmap = netManager->m_matchMakingInfos[netManager->m_currMMInfo]
                            .availableAids;
-      myAidSlot = fullBitmap & (m_aidsInRace | myAidSlot);
+      myAidSlot = fullBitmap & (m_receivedRH1FromAid | myAidSlot);
       result = (fullBitmap == myAidSlot);
     } else {
       result = false;

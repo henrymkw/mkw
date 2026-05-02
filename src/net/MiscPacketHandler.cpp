@@ -23,7 +23,7 @@ void MiscPacketHandler::setRH2Record(RH2Record* packet) {
   /*
   for (u8 i = 0; i < MAX_PLAYER_COUNT; i++) {
     if (((1 << i) & mmInfo->m_fullAidBitmap) && (i != mmInfo->m_myAid)) {
-      netManager->m_sendRACEPackets[netManager->m_lastSendIdx[i]][i]
+      netManager->m_sendRacePackets[netManager->m_lastSendIdx[i]][i]
           ->getRaceHeader1Packet()->copy(packet, 0x28);
     }
   }
@@ -143,12 +143,12 @@ u32 MiscPacketHandler::getRH1Timer(u32 playerId) {
     // u32 lastRecvIdx = netManager->m_lastRecvIdx[aid][1];
     u32 lastRecvIdx = netManager->m_lastRecvIdx[aid][1];
 
-    // NetManager::RACEPacketHolder *holder =
-    // netManager->m_recvRACEPackets[lastRecvIdx][aid];
-    NetManager::RACEPacketHolder* holder =
-        netManager->m_recvRACEPackets[netManager->m_lastRecvIdx[aid][1]][aid];
+    // RacePacketHolder *holder =
+    // netManager->m_recvRacePackets[lastRecvIdx][aid];
+    RacePacketHolder* holder =
+        netManager->m_recvRacePackets[netManager->m_lastRecvIdx[aid][1]][aid];
 
-    NetManager::PacketHolder* RH1Holder = holder->getRaceHeader1PacketHolder();
+    RecordHolder* RH1Holder = holder->rh1();
     if (RH1Holder->getPacketSize() != 0) {
       RH1Record* packet = RH1Holder->getPacket<RH1Record>();
       if (System::RaceConfig::spInstance->mRaceScenario.mSettings.mCameraMode !=
@@ -175,7 +175,7 @@ u16 MiscPacketHandler::unk80654568(u8 aid) {
         ->getPacket<RH1Record>()
         ->lagFrames;
     // return
-    // NetManager::getInstance()->m_recvRACEPackets[NetManager::getInstance()->m_lastRecvIdx[(u8)aid][1]][(u8)aid]->m_raceHeader1Packet->packet->_unkC;
+    // NetManager::getInstance()->m_recvRacePackets[NetManager::getInstance()->m_lastRecvIdx[(u8)aid][1]][(u8)aid]->m_raceHeader1Packet->packet->_unkC;
   }
   return 0;
 }
@@ -303,11 +303,10 @@ void MiscPacketHandler::updateBitfields() {
     u32 aidSlot = 1 << (u8)aid;
 
     if (isAidSlotInRoom(aidSlot) && (u32)aid != netManager->getMyAid()) {
-      // NetManager::RACEPacketHolder **row =
-      // (NetManager::RACEPacketHolder**)netManager->m_recvRACEPackets[netManager->m_lastRecvIdx[aid][1]];
-      // NetManager::PacketHolder *holder = row[aid]->m_packets[1];
-      NetManager::PacketHolder* holder =
-          netManager->getRecvRH1PacketHolder(aid);
+      // RacePacketHolder **row =
+      // (RacePacketHolder**)netManager->m_recvRacePackets[netManager->m_lastRecvIdx[aid][1]];
+      // RecordHolder *holder = row[aid]->m_records[1];
+      RecordHolder* holder = netManager->getRecvRH1PacketHolder(aid);
 
       if (holder->getPacketSize() != 0) {
         RH1Record* rh1Packet = reinterpret_cast<RH1Record*>(holder->m_packet);

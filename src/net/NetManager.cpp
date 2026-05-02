@@ -4,8 +4,9 @@
 #include "gamespy/GP/gp.h"
 #include "net/FriendInfo.hpp"
 #include "net/FriendRosterManager.hpp"
+#include "net/GPCallbacks.hpp"
 #include "net/MiscPacketHandler.hpp"
-#include "net/records/ROOM.hpp"
+#include "net/records/Room.hpp"
 
 #include "host_system/SystemManager.hpp"
 #include "host_system/RKSystem.hpp"
@@ -404,8 +405,8 @@ bool NetManager::hasFoundMatch() const {
 void NetManager::clearRACEPacketPointers() {
   for (u32 i = 0; i < 2; i++) {
     for (u32 j = 0; j < 12; j++) {
-      m_sendRACEPackets[i][j]->clearPackets();
-      m_recvRACEPackets[i][j]->clearPackets();
+      m_sendRacePackets[i][j]->clear();
+      m_recvRacePackets[i][j]->clear();
     }
   }
 }
@@ -477,7 +478,7 @@ void NetManager::sendRacePacket() {
     }
 
     bool sentSuccessfully = sendAidRacePacket(lastAid);
-    
+
     if (sentSuccessfully) {
       return;
     }
@@ -515,10 +516,10 @@ bool NetManager::sendAidRacePacket(u8 lastAid) {
 
 u32 NetManager::getRACEPacketSize(u8 aid) {
   u32 size = 0;
-  RACEPacketHolder* holder = m_sendRACEPackets[m_lastSendIdx[aid]][aid];
+  RacePacketHolder* holder = m_sendRacePackets[m_lastSendIdx[aid]][aid];
   // this could be inlined
   for (u32 i = 0; i < 8; i++) {
-    size += holder->getPacketHolder(i)->getPacketSize();
+    size += holder->holder(i)->getPacketSize();
   }
   return size;
 }
@@ -764,11 +765,10 @@ void NetManager::buildHeader(u8 aid) {
       header.packetSizes[i] = sizeof(RacePacketHeader);
       continue;
     }
-    header.packetSizes[i] = m_sendRACEPackets[m_lastSendIdx[aid] ^ 1][aid]
-                                ->getPacketHolder(i)
-                                ->m_packetSize;
+    header.packetSizes[i] =
+        m_sendRacePackets[m_lastSendIdx[aid] ^ 1][aid]->holder(i)->m_packetSize;
   }
-  m_sendRACEPackets[m_lastSendIdx[aid] ^ 1][aid]->getHeaderPacketHolder()->copy(
+  m_sendRacePackets[m_lastSendIdx[aid] ^ 1][aid]->header()->copy(
       &header, sizeof(RacePacketHeader));
 }
 
@@ -799,12 +799,9 @@ void NetManager::processRACEPacket(u8 aid, RacePacketHeader* header, u32 size) {
     for (u32 i = 0; i < ARRAY_SIZE(header->packetSizes); i++) {
       if (header->packetSizes[i] != 0) {
         // reset and copy the recieved packet into recv structs
-        m_recvRACEPackets[m_lastRecvIdx[aid][i] ^ 1][aid]
-            ->getPacketHolder(i)
-            ->reset();
-        m_recvRACEPackets[m_lastRecvIdx[aid][i] ^ 1][aid]
-            ->getPacketHolder(i)
-            ->copy(dataPacketPtr, header->packetSizes[i]);
+        m_recvRacePackets[m_lastRecvIdx[aid][i] ^ 1][aid]->holder(i)->reset();
+        m_recvRacePackets[m_lastRecvIdx[aid][i] ^ 1][aid]->holder(i)->copy(
+            dataPacketPtr, header->packetSizes[i]);
 
         // increment the data pointer to the next packet offset
         dataPacketPtr += header->packetSizes[i];
@@ -1000,62 +997,8 @@ void NetManager::updateStatusDatas() {
   }
 }
 
-NetManager::PacketHolder::PacketHolder(u32 bufferSize) {
-  m_packet = nullptr;
-  m_bufferSize = bufferSize;
-  m_packetSize = 0;
-  m_packet = operator new[](bufferSize);
-  reset();
-}
-
-NetManager::PacketHolder::~PacketHolder() {
-  delete m_packet;
-  m_packet = 0;
-}
-
-void NetManager::PacketHolder::reset() {
-  memset(m_packet, 0, m_bufferSize);
-  m_packetSize = 0;
-}
-
-void NetManager::PacketHolder::copy(void* src, u32 len) {
-  memcpy(m_packet, src, len);
-  m_packetSize = len;
-}
-
-void NetManager::PacketHolder::append(void* src, u32 len) {
-  memcpy((void*)((u32)m_packet + m_packetSize), src, len);
-  m_packetSize += len;
-}
-
-extern "C" u32 racePacketSizes[9] = {0x10, 0x28, 0x28, 0x38, 0x80,
-                                     0xc0, 0x10, 0xf8, 0x2e0};
-
-NetManager::RACEPacketHolder::RACEPacketHolder() {
-  for (u32 i = 0; i < ARRAY_SIZE(m_packets); i++) {
-    // issue, instructions are swapped:
-    // current loads the size then sets m_packet = nullptr (which happens in
-    // PacketHolder's inline ctor) target is the other way around
-    m_packets[i] = new PacketHolder(racePacketSizes[i]);
-  }
-}
-
-NetManager::RACEPacketHolder::~RACEPacketHolder() {
-  for (u32 i = 0; i < ARRAY_SIZE(m_packets); i++) {
-    delete m_packets[i];
-  }
-}
-
-void NetManager::RACEPacketHolder::clearPackets() {
-  for (u32 i = 0; i < 8; i++) {
-    getPacketHolder(i)->reset();
-  }
-}
-
 bool NetManager::hasDisconnected(u32 playerId) {
   return (1 << playerId & m_disconnectedPlayerIds) != 0;
 }
-void GPReversBuddiesListCallback(GPConnection* connection, void* arg,
-                                 void* self) {}
-void SetGPError(GPResult result) {}
+
 } // namespace Net

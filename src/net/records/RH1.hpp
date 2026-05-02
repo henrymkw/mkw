@@ -59,13 +59,14 @@ public:
 private:
   bool m_prepared;
   u8 _001[0x004 - 0x001];
-  
-  // bit field for aids currently racing. This is set by RaceConfig::Scenario::Settings::Seed1 
-  // which is 0 when in the globe scene or spectating, and 1 when in racing. This is used
-  // to determine a few different things, such as who needs a User record (sometimes if 0),
-  // who needs a RaceData, etc
+
+  // bit field for aids currently racing. This is set by
+  // RaceConfig::Scenario::Settings::Seed1 which is 0 when in the globe scene or
+  // spectating, and 1 when in racing. This is used to determine a few different
+  // things, such as who needs a User record (sometimes if 0), who needs a
+  // RaceData, etc
   u32 m_aidsInRace;
-  
+
   // Bit field indexed by aid. Also set when importing a RH1 record from an aid.
   // When set for an aid, you won't export RH1Record._17 as 1 anymore.
   u32 m_receivedRH1FromAid;

@@ -175,6 +175,16 @@ net/NetManager.cpp:
 	.data       start:0x808C0960 end:0x808C0998
 	.bss        start:0x809C1F58 end:0x809C20E0
 
+net/RecordHolder.cpp:
+	.text       start:0x8065A24C end:0x8065A3DC
+
+net/RacePacketHolder.cpp:
+	.text       start:0x8065A3DC end:0x8065A4F8
+	.rodata     start:0x8089A194 end:0x8089A1B8
+
+net/GPCallbacks.cpp:
+	.text       start:0x8065A8D4 end:0x8065AA88
+
 net/records/Room.cpp:
 	.text       start:0x8065AA88 end:0x8065B354
 	.bss        start:0x809C20E0 end:0x809C20F0
@@ -183,7 +193,7 @@ net/records/Event.cpp:
 	.text       start:0x8065B4E8 end:0x8065C0EC
 	.bss        start:0x809C20F0 end:0x809C20F8
 
-net/packets/Item.cpp:
+net/records/Item.cpp:
 	.text       start:0x8065C0EC end:0x8065FE8C
 	.bss        start:0x809C20F8 end:0x809C2100
 

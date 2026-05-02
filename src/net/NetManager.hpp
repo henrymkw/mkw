@@ -10,6 +10,8 @@
 
 #include "net/DisconnectInfo.hpp"
 #include "net/FriendInfo.hpp"
+#include "net/RacePacketHolder.hpp"
+#include "net/RecordHolder.hpp"
 #include "net/records/RacePacketHeader.hpp"
 #include "net/records/RH1.hpp"
 #include "net/records/RH2.hpp"
@@ -30,87 +32,6 @@ namespace Net {
 
 class NetManager {
 public:
-  class PacketHolder {
-  public:
-    PacketHolder(u32 bufferSize);
-    ~PacketHolder();
-
-    void reset();
-
-    void copy(void* src, u32 len);
-
-    void append(void* src, u32 len);
-
-    template <typename T> T* getPacket() {
-      return reinterpret_cast<T*>(m_packet);
-    }
-    u32 getBufferSize() { return m_bufferSize; }
-    u32 getPacketSize() { return m_packetSize; }
-
-    void* m_packet;
-    u32 m_bufferSize;
-    u32 m_packetSize;
-  };
-
-  // Packet ID constants
-  static const u32 HEADERPacketId = 0;
-  static const u32 RACEHEADER1PacketId = 1;
-  static const u32 RACEHEADER2PacketId = 2;
-  static const u32 SELECTPacketId = 3;
-  static const u32 RACEDATAPacketId = 4;
-  static const u32 USERPacketId = 5;
-  static const u32 ITEMPacketId = 6;
-  static const u32 EVENTPacketId = 7;
-
-  class RACEPacketHolder {
-  public:
-    NetManager::PacketHolder* getHeaderPacketHolder() {
-      return m_packets[HEADERPacketId];
-    }
-
-    NetManager::PacketHolder* getRaceHeader1PacketHolder() {
-      return m_packets[RACEHEADER1PacketId];
-    }
-
-    NetManager::PacketHolder* getRaceHeader2PacketHolder() {
-      return m_packets[RACEHEADER2PacketId];
-    }
-
-    NetManager::PacketHolder* getSelectPacketHolder() {
-      return m_packets[SELECTPacketId];
-    }
-
-    NetManager::PacketHolder* getRaceDataPacketHolder() {
-      return m_packets[RACEDATAPacketId];
-    }
-
-    NetManager::PacketHolder* getUserPacketHolder() {
-      return m_packets[USERPacketId];
-    }
-
-    NetManager::PacketHolder* getItemPacketHolder() {
-      return m_packets[ITEMPacketId];
-    }
-
-    NetManager::PacketHolder* getEventPacketHolder() {
-      return m_packets[EVENTPacketId];
-    }
-
-    NetManager::PacketHolder* getPacketHolder(u32 idx) {
-      return m_packets[idx];
-    }
-
-    inline void clearPackets();
-
-    NetManager::PacketHolder* m_packets[8];
-
-    // 0x8065a3dc
-    RACEPacketHolder();
-    // 0x8065a474
-    ~RACEPacketHolder();
-  };
-  static_assert(sizeof(RACEPacketHolder) == 0x20);
-
   enum ConnectionState {
     CONNECTION_STATE_SHUTDOWN = 0x0, // offline
     CONNECTION_STATE_BEGIN_LOGIN = 0x1,
@@ -305,37 +226,35 @@ public:
 
   inline bool hasDisconnected(u32 playerId);
 
-  inline NetManager::PacketHolder* getSendRH1PacketHolder(u8 aid) {
-    return m_sendRACEPackets[m_lastSendIdx[aid]][aid]
-        ->getRaceHeader1PacketHolder();
+  inline RacePacketHolder* lastRecvRacePacket(u8 aid, u32 type) {
+    return m_recvRacePackets[m_lastRecvIdx[aid][type]][aid];
   }
 
-  inline NetManager::PacketHolder* getRecvRH1PacketHolder(u8 aid) {
-    NetManager* netManager = NetManager::Instance();
+  inline RecordHolder* getRecvRH1PacketHolder(u8 aid) {
 
-    NetManager::RACEPacketHolder** row =
-        (NetManager::RACEPacketHolder**)
-            netManager->m_recvRACEPackets[netManager->m_lastRecvIdx[aid][1]];
-    return row[aid]->m_packets[1];
+    return lastRecvRacePacket(aid, RH1_RECORD)->rh1();
+    /*
+    RacePacketHolder** row =
+        (RacePacketHolder**)
+            netManager->m_recvRacePackets[netManager->m_lastRecvIdx[aid][1]];
+    return row[aid]->m_records[1];
+    */
   }
 
-  inline NetManager::PacketHolder* getSendRH2PacketHolder(u8 aid) {
-    return m_sendRACEPackets[m_lastSendIdx[aid]][aid]
-        ->getRaceHeader2PacketHolder();
+  inline RecordHolder* getSendRH2PacketHolder(u8 aid) {
+    return m_sendRacePackets[m_lastSendIdx[aid]][aid]->rh2();
   }
 
-  inline NetManager::PacketHolder* getSendSelectPacketHolder(u8 aid) {
-    return m_sendRACEPackets[m_lastSendIdx[aid]][aid]->getSelectPacketHolder();
+  inline RecordHolder* getSendSelectPacketHolder(u8 aid) {
+    return m_sendRacePackets[m_lastSendIdx[aid]][aid]->select();
   }
 
-  inline NetManager::PacketHolder* getRecvSelectPacketHolder(u8 aid) {
-    return m_recvRACEPackets[m_lastRecvIdx[aid][SELECTPacketId]][aid]
-        ->getSelectPacketHolder();
+  inline RecordHolder* getRecvSelectPacketHolder(u8 aid) {
+    return m_recvRacePackets[m_lastRecvIdx[aid][SELECTPacketId]][aid]->select();
   }
 
-  inline NetManager::PacketHolder* getSendRACEDATAPacketHolder(u8 aid) {
-    return m_sendRACEPackets[m_lastSendIdx[aid]][aid]
-        ->getRaceDataPacketHolder();
+  inline RecordHolder* getSendRACEDATAPacketHolder(u8 aid) {
+    return m_sendRacePackets[m_lastSendIdx[aid]][aid]->raceData();
   }
 
   static NetManager* Instance() { return spInstance; }
@@ -378,12 +297,12 @@ public:
   RoomType m_roomType;
   VoteMatchMakingSuspended m_voteMMSuspension;
   // points to RACE packets to be sent, two per aid / 0xf0
-  NetManager::RACEPacketHolder* m_sendRACEPackets[2][MAX_PLAYER_COUNT];
+  RacePacketHolder* m_sendRacePackets[2][MAX_PLAYER_COUNT];
   // points to RACE packets to be recieved, two per aid / 0x150
-  NetManager::RACEPacketHolder* m_recvRACEPackets[2][MAX_PLAYER_COUNT];
-  // The RACE packet to be sent, formed from m_sendRACEPackets, one per aid /
+  RacePacketHolder* m_recvRacePackets[2][MAX_PLAYER_COUNT];
+  // The RACE packet to be sent, formed from m_sendRacePackets, one per aid /
   // 0x1b0
-  NetManager::PacketHolder* m_outgoingRACEPacket[MAX_PLAYER_COUNT];
+  RecordHolder* m_outgoingRACEPacket[MAX_PLAYER_COUNT];
   OSTime m_timeOfLastSentRACE[MAX_PLAYER_COUNT]; // 0x1e0
   OSTime m_timeOfLastRecvRACE[MAX_PLAYER_COUNT]; // 0x240
   OSTime
@@ -406,9 +325,9 @@ public:
   u32 m_disconnectPenalty;
   s32 m_vr;
   s32 m_br;
-  u32 m_lastSendIdx[MAX_PLAYER_COUNT]; // idx of m_sendRACEPackets last sent per
+  u32 m_lastSendIdx[MAX_PLAYER_COUNT]; // idx of m_sendRacePackets last sent per
                                        // aid
-  // idx of m_recvRACEPackets last recvieved per packet per aid
+  // idx of m_recvRacePackets last recvieved per packet per aid
   u32 m_lastRecvIdx[MAX_PLAYER_COUNT][8];      // 0x279c
   u32 m_currMMInfo;                            // Current MM info used 0x291c
   u8 m_playerIdToAidMapping[MAX_PLAYER_COUNT]; // 0x2920
@@ -421,10 +340,7 @@ public:
 };
 static_assert(sizeof(NetManager) == 0x29c8);
 } // namespace Net
-static void GPReversBuddiesListCallback(GPConnection* connection, void* arg,
-                                        void* self);
 
-static void SetGPError(GPResult result);
 // MIT License
 
 // Copyright (c) 2023 MelgMKW

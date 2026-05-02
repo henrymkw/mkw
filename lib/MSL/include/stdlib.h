@@ -16,7 +16,7 @@ typedef unsigned long size_t;
 #error compiler has no instrinsic abs support, please do some sit ups.
 #endif
 
-long strtol(const char* restrict nptr, char** restrict endptr, int base);
+long strtol(const char* nptr, char** endptr, int base);
 unsigned long int strtoul(const char* str, char** endptr, int base);
 unsigned long __strtoul(int, int, int (*)(void*, int, int), void*, int*, int*,
                         int*);
