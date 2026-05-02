@@ -17,8 +17,11 @@ public:
 
   bool hasFreeEntries();
 
+  inline u32 freeSpaceInSendBuffer() { return m_freeSpaceInSendBuffer; }
+
   static EventHandler* Instance() { return spInstance; }
 
+private:
   u8 _0000[0x2b84 - 0x0000];
   u32 m_freeSpaceInSendBuffer;
 

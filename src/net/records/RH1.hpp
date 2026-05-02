@@ -1,5 +1,7 @@
 #pragma once
 
+#include "net/AidBitmap.hpp"
+
 #include "system/ResourceManager.hpp"
 
 #include <rk_types.h>
@@ -65,11 +67,11 @@ private:
   // spectating, and 1 when in racing. This is used to determine a few different
   // things, such as who needs a User record (sometimes if 0), who needs a
   // RaceData, etc
-  u32 m_aidsInRace;
+  AidBitmap<u8> m_aidsInRace;
 
   // Bit field indexed by aid. Also set when importing a RH1 record from an aid.
-  // When set for an aid, you won't export RH1Record._17 as 1 anymore.
-  u32 m_receivedRH1FromAid;
+  // When set for an aid, you won't export RH1Id._17 as 1 anymore.
+  AidBitmap<u8> m_receivedRH1FromAid;
 
   u32 m_receivedNewRH1FromAid;
 

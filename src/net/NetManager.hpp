@@ -24,20 +24,10 @@
 
 namespace Net {
 
-enum RecordId {
-  HEADER_RECORD,
-  RH1_RECORD,
-  RH2_RECORD,
-  SELECT_RECORD,
-  RACE_DATA_RECORD,
-  USER_RECORD,
-  ITEM_RECORD,
-  EVENT_RECORD
-};
 // Packet ID constants
 static const u32 HEADERPacketId = 0;
-static const u32 RACEHEADER1PacketId = 1;
-static const u32 RACEHEADER2PacketId = 2;
+static const u32 RH1Id = 1;
+static const u32 RH2Id = 2;
 static const u32 SELECTPacketId = 3;
 static const u32 RACEDATAPacketId = 4;
 static const u32 USERPacketId = 5;
@@ -55,11 +45,9 @@ public:
 
   void append(void* src, u32 len);
 
-  template <typename T> T* getPacket() {
-    return reinterpret_cast<T*>(m_packet);
-  }
-  u32 getBufferSize() { return m_bufferSize; }
-  u32 getPacketSize() { return m_packetSize; }
+  template <typename T> T* record() { return reinterpret_cast<T*>(m_packet); }
+  u32 bufferSize() { return m_bufferSize; }
+  u32 recordSize() { return m_packetSize; }
 
   void* m_packet;
   u32 m_bufferSize;
@@ -70,9 +58,9 @@ class RacePacketHolder {
 public:
   RecordHolder* header() { return m_records[HEADERPacketId]; }
 
-  RecordHolder* rh1() { return m_records[RACEHEADER1PacketId]; }
+  RecordHolder* rh1() { return m_records[RH1Id]; }
 
-  RecordHolder* rh2() { return m_records[RACEHEADER2PacketId]; }
+  RecordHolder* rh2() { return m_records[RH2Id]; }
 
   RecordHolder* select() { return m_records[SELECTPacketId]; }
 
@@ -271,6 +259,10 @@ public:
 
   void resetPlayerIdToAidMap();
 
+  inline u8 playerIdToAid(s32 playerId) {
+    return m_playerIdToAidMapping[playerId];
+  }
+
   inline s32 getLocalId(u32 hudId) const;
 
   inline bool myAidInRoom() const;
@@ -283,53 +275,51 @@ public:
 
   struct MatchMakingInfo;
 
-  inline const MatchMakingInfo* currMMInfo() const {
+  inline const MatchMakingInfo* mmInfo() const {
     return &m_matchMakingInfos[m_currMMInfo];
   }
-  inline MatchMakingInfo* getMMInfo() {
-    return &m_matchMakingInfos[m_currMMInfo];
-  }
+  inline MatchMakingInfo* mmInfo() { return &m_matchMakingInfos[m_currMMInfo]; }
 
-  inline u8 getMyAid() { return getMMInfo()->myAid; }
+  inline u8 myAid() { return mmInfo()->myAid; }
 
-  inline bool isAidUsed(u8 aid) {
-    return getMMInfo()->availableAids.on(aid);
+  inline AidBitmap<u8> availableAids() const { return mmInfo()->availableAids; }
+
+  inline bool isAidUsed(u8 aid) { return mmInfo()->availableAids.on(aid); }
+
+  inline bool isMatchMakingSuspended() {
+    return mmInfo()->isMatchMakingSuspended;
   }
 
   inline bool isPlayerDisconnected(u32 playerId) {
     return m_disconnectedPlayerIds.on(playerId);
   }
-  
 
+  inline bool canSendToAid(u8 aid) { return isAidUsed(aid) && aid != myAid(); }
+
+  inline u32 getLastRecvBuffer(u8 aid, u32 recordId) {
+    return m_lastRecvIdx[aid][recordId];
+  }
 
   inline RacePacketHolder* lastRecvRacePacket(u8 aid, u32 type) {
     return m_recvRacePackets[m_lastRecvIdx[aid][type]][aid];
   }
-
-  inline RecordHolder* getRecvRH1PacketHolder(u8 aid) {
-
-    return lastRecvRacePacket(aid, RH1_RECORD)->rh1();
-    /*
-    RacePacketHolder** row =
-        (RacePacketHolder**)
-            netManager->m_recvRacePackets[netManager->m_lastRecvIdx[aid][1]];
-    return row[aid]->m_records[1];
-    */
+  inline RecordHolder* recvRH1(u8 aid) {
+    return m_recvRacePackets[m_lastRecvIdx[aid][RH1Id]][aid]->rh1();
   }
 
-  RecordHolder* getSendRH2PacketHolder(u8 aid) {
+  RecordHolder* sentRH2(u8 aid) const {
     return m_sendRacePackets[m_lastSendIdx[aid]][aid]->rh2();
   }
 
-  inline RecordHolder* getSendSelectPacketHolder(u8 aid) {
+  inline RecordHolder* sentSelect(u8 aid) {
     return m_sendRacePackets[m_lastSendIdx[aid]][aid]->select();
   }
 
-  inline RecordHolder* getRecvSelectPacketHolder(u8 aid) {
+  inline RecordHolder* recvSelect(u8 aid) {
     return m_recvRacePackets[m_lastRecvIdx[aid][SELECTPacketId]][aid]->select();
   }
 
-  inline RecordHolder* getSendRACEDATAPacketHolder(u8 aid) {
+  inline RecordHolder* recvRaceData(u8 aid) {
     return m_sendRacePackets[m_lastSendIdx[aid]][aid]->raceData();
   }
 
@@ -339,10 +329,12 @@ public:
 
   struct MatchMakingInfo {       // 0x0038
     OSTime matchMakingStartTime; // gets set upon match making 0x0 / 0x0038
-    u32 numAids;    // number of non guest players 0x8  / 0x0040
-    u32 playerCount;   // players in room (includes guests) 0xC / 0x0044
-    AidBitmap<u8> availableAids; // # bits is equal to num consoles, all 1 0x10 / 0x0048
-    AidBitmap<u8> directConnectedAidBitmap; // Aids I'm connected to. It will fill up to
+    u32 numAids;                 // number of non guest players 0x8  / 0x0040
+    u32 playerCount; // players in room (includes guests) 0xC / 0x0044
+    AidBitmap<u8>
+        availableAids; // # bits is equal to num consoles, all 1 0x10 / 0x0048
+    AidBitmap<u8>
+        directConnectedAidBitmap; // Aids I'm connected to. It will fill up to
                                   // equal availableAids by the end of MM as
                                   // I connect to other users. 0x14 / 0x004c
     u32 roomId;                   // Also known as groupId by DWC 0x18 / 0x0050
@@ -360,6 +352,7 @@ public:
   };
   static_assert(sizeof(MatchMakingInfo) == 0x58);
 
+private:
   // Two vtables
   void* m_vtable1; // offset 0xc is NetManager's dtor
   void* m_vtable2; // unk dtor at 0xc, also present in FriendManager vtable
@@ -378,7 +371,7 @@ public:
   RacePacketHolder* m_recvRacePackets[2][MAX_PLAYER_COUNT];
   // The RACE packet to be sent, formed from m_sendRacePackets, one per aid /
   // 0x1b0
-  RecordHolder* m_outgoingRACEPacket[MAX_PLAYER_COUNT];
+  RecordHolder* m_outgoingRacePacket[MAX_PLAYER_COUNT];
   OSTime m_timeOfLastSentRACE[MAX_PLAYER_COUNT]; // 0x1e0
   OSTime m_timeOfLastRecvRACE[MAX_PLAYER_COUNT]; // 0x240
   OSTime
@@ -407,8 +400,9 @@ public:
   u32 m_lastRecvIdx[MAX_PLAYER_COUNT][8];      // 0x279c
   u32 m_currMMInfo;                            // Current MM info used 0x291c
   u8 m_playerIdToAidMapping[MAX_PLAYER_COUNT]; // 0x2920
-  AidBitmap<u8> m_disconnectedAids;      // disconnected if 1 << aid is 1 // 0x292c
-  AidBitmap<u32> m_disconnectedPlayerIds; // disconnected if 1 << pid is 1 // 0x2930
+  AidBitmap<u8> m_disconnectedAids; // disconnected if 1 << aid is 1 // 0x292c
+  AidBitmap<u32>
+      m_disconnectedPlayerIds; // disconnected if 1 << pid is 1 // 0x2930
   u8 _2934[0x295c - 0x2934];   // elo based MM struct
   u8 _295c[0x29c8 - 0x295c];   // some timers
 

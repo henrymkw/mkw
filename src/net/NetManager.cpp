@@ -356,12 +356,12 @@ bool NetManager::isConnectionStateIdle() const {
 bool NetManager::hasFoundMatch() const {
   bool inMatch = false;
 
-  u8 myAid = currMMInfo()->myAid;
-  bool isMyAidInMatch = m_matchMakingInfos[m_currMMInfo].availableAids.on(myAid);
+  u8 myAid = mmInfo()->myAid;
+  bool isMyAidInMatch =
+      m_matchMakingInfos[m_currMMInfo].availableAids.on(myAid);
   // were in a match if my aid is in the room and we have connected to another
   // console
-  if (isMyAidInMatch &&
-     m_matchMakingInfos[m_currMMInfo].numAids > 1) {
+  if (isMyAidInMatch && m_matchMakingInfos[m_currMMInfo].numAids > 1) {
     inMatch = true;
   }
   return inMatch;
@@ -411,14 +411,14 @@ void NetManager::sendRacePacket() {
       lastAid = 0;
     }
 
-    MatchMakingInfo* mmInfo = getMMInfo();
+    MatchMakingInfo* matchMakingInfo = mmInfo();
 
     // skip if the aid is used or the aid is mine
-    if ((mmInfo->availableAids.on(lastAid)) == 0) {
+    if ((matchMakingInfo->availableAids.on(lastAid)) == 0) {
       lastAid++;
       continue;
     }
-    if (lastAid == mmInfo->myAid) {
+    if (lastAid == matchMakingInfo->myAid) {
       lastAid++;
       continue;
     }
@@ -434,15 +434,15 @@ void NetManager::sendRacePacket() {
 
 bool NetManager::sendAidRacePacket(u8 lastAid) {
   BOOL sentSuccessfully = FALSE;
-  if (m_outgoingRACEPacket[lastAid]->m_packetSize != 0) {
+  if (m_outgoingRacePacket[lastAid]->m_packetSize != 0) {
 
-    ((RacePacketHeader*)m_outgoingRACEPacket[lastAid]->m_packet)->crc32 =
-        NETCalcCRC32(m_outgoingRACEPacket[lastAid]->m_packet,
-                     m_outgoingRACEPacket[lastAid]->m_packetSize);
+    ((RacePacketHeader*)m_outgoingRacePacket[lastAid]->m_packet)->crc32 =
+        NETCalcCRC32(m_outgoingRacePacket[lastAid]->m_packet,
+                     m_outgoingRacePacket[lastAid]->m_packetSize);
 
     sentSuccessfully =
-        DWC_SendUnreliable(lastAid, m_outgoingRACEPacket[lastAid]->m_packet,
-                           m_outgoingRACEPacket[lastAid]->m_packetSize);
+        DWC_SendUnreliable(lastAid, m_outgoingRacePacket[lastAid]->m_packet,
+                           m_outgoingRacePacket[lastAid]->m_packetSize);
 
     if (sentSuccessfully) {
       OSTime lastSentTime = m_timeOfLastSentRACE[lastAid];
@@ -455,7 +455,7 @@ bool NetManager::sendAidRacePacket(u8 lastAid) {
       m_timeOfLastSentRACE[lastAid] = OSGetTime();
     }
 
-    m_outgoingRACEPacket[lastAid]->reset();
+    m_outgoingRacePacket[lastAid]->reset();
   }
   return sentSuccessfully == TRUE;
 }
@@ -465,7 +465,7 @@ u32 NetManager::getRACEPacketSize(u8 aid) {
   RacePacketHolder* holder = m_sendRacePackets[m_lastSendIdx[aid]][aid];
   // this could be inlined
   for (u32 i = 0; i < 8; i++) {
-    size += holder->holder(i)->getPacketSize();
+    size += holder->holder(i)->recordSize();
   }
   return size;
 }
@@ -711,9 +711,9 @@ void NetManager::buildHeader(u8 aid) {
 }
 
 void NetManager::calcOutgoingCRC32(u8 aid) {
-  u32 crc32 = NETCalcCRC32(m_outgoingRACEPacket[aid]->m_packet,
-                           m_outgoingRACEPacket[aid]->getPacketSize());
-  reinterpret_cast<RacePacketHeader*>(m_outgoingRACEPacket[aid]->m_packet)
+  u32 crc32 = NETCalcCRC32(m_outgoingRacePacket[aid]->m_packet,
+                           m_outgoingRacePacket[aid]->recordSize());
+  reinterpret_cast<RacePacketHeader*>(m_outgoingRacePacket[aid]->m_packet)
       ->crc32 = crc32;
 }
 
@@ -788,12 +788,8 @@ s32 NetManager::getLocalId(u32 hudId) const {
 }
 
 bool NetManager::myAidInRoom() const {
-  /*
-  u32 fullMap = m_matchMakingInfos[m_currMMInfo].availableAids;
-  u8 myAid = m_matchMakingInfos[m_currMMInfo].myAid;
-  return (1 << myAid & fullMap);
-  */
-  return m_matchMakingInfos[m_currMMInfo].availableAids.on(m_matchMakingInfos[m_currMMInfo].myAid);
+  return m_matchMakingInfos[m_currMMInfo].availableAids.on(
+      m_matchMakingInfos[m_currMMInfo].myAid);
 }
 
 s32 NetManager::getLocalPlayerId(u32 hudId) const {

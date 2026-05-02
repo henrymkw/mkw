@@ -37,7 +37,7 @@ public:
 
   void resetSendRH2Records();
 
-  void createAndCopyRH1andUSERPackets();
+  void exportAsSpectator();
 
   // gets inlined in update()
   void updateAsSpectator();
@@ -138,11 +138,11 @@ private:
 
   // Bit field indexed by aid. 0 indicates last sent a Room, 1 indicates last
   // sent Select
-  u32 m_aidsLastSentRoomOrSelect;
+  AidBitmap<u8> m_aidsLastSentRoomOrSelect;
 
   // Bit field indexed by aid. Partially used to determine stopping a player
   // (disconnect animation)
-  u32 m_aidsShouldStop;
+  AidBitmap<u8> m_aidsShouldStop;
 
   // TODO: Explanation
   u16 m_myLagFrames; // 0x10
