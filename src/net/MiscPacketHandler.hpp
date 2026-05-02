@@ -26,15 +26,15 @@ public:
 
   MiscPacketHandler();
 
-  void clearAidFromUnkBitfield(u32 aid);
+  void clearAidInRace(u32 aid);
 
   inline u8 getAidFromPlayerId(s32 playerId) const;
 
   void setRH2Record(RH2Record* packet);
 
-  void resetSendRACEDATAPackets();
+  void resetSendRaceDataRecords();
 
-  void resetSendRACEHEADER2Packets();
+  void resetSendRH2Records();
 
   void createAndCopyRH1andUSERPackets();
 
@@ -87,13 +87,13 @@ public:
   // returns aidTimeSinceRaceStart if in a race (?) and difference between
   // m_elapsedTimeSinceRaceStart and aid's time is less than 600 ms (not a bunch
   // of) returns m_elapsedTimeSinceRaceStart otherwise
-  u32 getRH1Timer(u32 playerId);
+  u32 getPlayerElapsedTimeSinceRaceStart(u32 playerId);
 
-  u16 unk80654568(u8 aid);
+  u16 getAidLagFrames(u8 aid);
 
-  bool isEVENTfun8065b8d4();
+  bool hasFreeEventEntries();
 
-  u32 getEVENTUnk2b88();
+  u32 getEventFreeSpace();
 
   inline bool isPlayerIdInRoom(u32 playerId);
 
@@ -113,12 +113,12 @@ public:
 
   bool isPlayerLocal(u32 playerId);
 
-  u32 getHudSlotId(u32 playerId);
+  u32 getLocalPlayerId(u32 playerId);
 
   void stopDisconnectedPlayers();
 
-  // unused?
-  void stopDisconnectPlayersField_C();
+  // Inlined, has a few extra checks
+  void stopPlayersAsSpectator();
 
   void updateBitfields();
 
@@ -132,20 +132,17 @@ private:
   bool scheduleDisconnect;
   u8 _002[0x004 - 0x002];
 
-  // Bit field indexed by aid where (m_aidsWithRH1Seed & (1 << aid)) == 1
-  // when that aid send over a non-zero RH1Record.seed.
-  // Despite being a random seed, used to for non-random functionalities,
-  // such as indicating which aids are loaded in the race.
-  // The random trait is used, though not well documented at time of writing.
-  u32 m_aidsWithRH1Seed;
+  // Bit field indexed by aid that indicates whether that aid has loaded into
+  // the race. This is used to determine when to count the startdown and the
+  // type of records to send to a given aid
+  u32 m_aidsLoadedIntoRace;
 
-  // Bit field indexed by aid.
-  // When result of (m_aidsLastSentRoomOrSelect & (1 << aid)) is:
-  // - 0: Aid last sent a Room record
-  // - 1: Aid last sent a Select record
+  // Bit field indexed by aid. 0 indicates last sent a Room, 1 indicates last
+  // sent Select
   u32 m_aidsLastSentRoomOrSelect;
 
-  // Bit field indexed by aid. TODO: Explanation. Disconnect related.
+  // Bit field indexed by aid. Partially used to determine stopping a player
+  // (disconnect animation)
   u32 m_aidsShouldStop;
 
   // TODO: Explanation

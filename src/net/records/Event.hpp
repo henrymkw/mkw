@@ -11,16 +11,16 @@ static_assert(sizeof(EventRecord) == 0xf8);
 
 class EventHandler {
 public:
-  static void createStaticInstance();
+  static void createInstance();
 
-  void calc();
+  void update();
 
-  bool unk8065b8d4();
+  bool hasFreeEntries();
 
   static EventHandler* Instance() { return spInstance; }
 
   u8 _0000[0x2b84 - 0x0000];
-  u32 _unk2b88;
+  u32 m_freeSpaceInSendBuffer;
 
   static EventHandler* spInstance;
 };

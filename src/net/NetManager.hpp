@@ -10,16 +10,9 @@
 
 #include "net/DisconnectInfo.hpp"
 #include "net/FriendInfo.hpp"
-#include "net/RacePacketHolder.hpp"
-#include "net/RecordHolder.hpp"
 #include "net/records/RacePacketHeader.hpp"
 #include "net/records/RH1.hpp"
-#include "net/records/RH2.hpp"
-#include "net/records/Select.hpp"
-#include "net/records/RaceData.hpp"
 #include "net/records/User.hpp"
-#include "net/records/Item.hpp"
-#include "net/records/Event.hpp"
 
 #include <egg/core/eggExpHeap.hpp>
 #include <egg/core/eggTaskThread.hpp>
@@ -29,6 +22,79 @@
 #include <gamespy/GP/gp.h>
 
 namespace Net {
+
+enum RecordId {
+  HEADER_RECORD,
+  RH1_RECORD,
+  RH2_RECORD,
+  SELECT_RECORD,
+  RACE_DATA_RECORD,
+  USER_RECORD,
+  ITEM_RECORD,
+  EVENT_RECORD
+};
+// Packet ID constants
+static const u32 HEADERPacketId = 0;
+static const u32 RACEHEADER1PacketId = 1;
+static const u32 RACEHEADER2PacketId = 2;
+static const u32 SELECTPacketId = 3;
+static const u32 RACEDATAPacketId = 4;
+static const u32 USERPacketId = 5;
+static const u32 ITEMPacketId = 6;
+static const u32 EVENTPacketId = 7;
+
+class RecordHolder {
+public:
+  RecordHolder(u32 bufferSize);
+  ~RecordHolder();
+
+  void reset();
+
+  void copy(void* src, u32 len);
+
+  void append(void* src, u32 len);
+
+  template <typename T> T* getPacket() {
+    return reinterpret_cast<T*>(m_packet);
+  }
+  u32 getBufferSize() { return m_bufferSize; }
+  u32 getPacketSize() { return m_packetSize; }
+
+  void* m_packet;
+  u32 m_bufferSize;
+  u32 m_packetSize;
+};
+
+class RacePacketHolder {
+public:
+  RecordHolder* header() { return m_records[HEADERPacketId]; }
+
+  RecordHolder* rh1() { return m_records[RACEHEADER1PacketId]; }
+
+  RecordHolder* rh2() { return m_records[RACEHEADER2PacketId]; }
+
+  RecordHolder* select() { return m_records[SELECTPacketId]; }
+
+  RecordHolder* raceData() { return m_records[RACEDATAPacketId]; }
+
+  RecordHolder* user() { return m_records[USERPacketId]; }
+
+  RecordHolder* item() { return m_records[ITEMPacketId]; }
+
+  RecordHolder* event() { return m_records[EVENTPacketId]; }
+
+  RecordHolder* holder(u32 idx) { return m_records[idx]; }
+
+  inline void clear();
+
+  RecordHolder* m_records[8];
+
+  // 0x8065a3dc
+  RacePacketHolder();
+  // 0x8065a474
+  ~RacePacketHolder();
+};
+static_assert(sizeof(RacePacketHolder) == 0x20);
 
 class NetManager {
 public:
@@ -74,8 +140,6 @@ public:
   NetManager(EGG::ExpHeap* heap);
 
   ~NetManager();
-
-  void init(u8 localPlayerCount);
 
   void scheduleShutdown();
 
@@ -200,7 +264,7 @@ public:
 
   void calcOutgoingCRC32(u8 aid);
 
-  void processRACEPacket(u8 aid, RacePacketHeader* header, u32 size);
+  void processRacePacket(u8 aid, RacePacketHeader* header, u32 size);
 
   void updateAidMapping();
 
@@ -241,7 +305,7 @@ public:
     */
   }
 
-  inline RecordHolder* getSendRH2PacketHolder(u8 aid) {
+  RecordHolder* getSendRH2PacketHolder(u8 aid) {
     return m_sendRacePackets[m_lastSendIdx[aid]][aid]->rh2();
   }
 

@@ -11,9 +11,9 @@ static_assert(sizeof(ItemRecord) == 0x8);
 
 class ItemHandler {
 public:
-  static void createStaticInstance();
+  static void createInstance();
 
-  void calc();
+  void update();
 
   static ItemHandler* Instance() { return spInstance; }
 

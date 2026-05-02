@@ -18,7 +18,7 @@ enum FriendStatus {
 };
 
 // The enums here are a little confusing and deserve some explanation
-// Whereas FriendStatus only makes a destinction between public and private
+// Whereas FriendStatus only makes a distinction between public and private
 // rooms, FriendJoinableStatus goes a bit further in whether you can join the
 // public room or not.
 enum FriendJoinableStatus {

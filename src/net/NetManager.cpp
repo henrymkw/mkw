@@ -23,41 +23,6 @@
 
 namespace Net {
 
-NetManager::NetManager(EGG::ExpHeap* heap) {}
-
-NetManager::~NetManager() {}
-
-void NetManager::init(u8 localPlayerCount) {
-  // Not sure what this RKSystem field is.
-  System::RKSystem* system = System::RKSystem::getStaticInstance();
-  system->_6c = true;
-
-  // Set connection state to begin login and reset various fields.
-  m_connectionState = CONNECTION_STATE_BEGIN_LOGIN;
-
-  resetDisconnectInfo();
-
-  m_roomType = ROOM_TYPE_NONE;
-  m_voteMMSuspension = VOTE_MM_NONE;
-  m_aidLastSentTo = 0xff;
-  m_friendRosterChanged = false;
-  m_shutdownScheduled = false;
-  m_shouldUpdateFriendStatus = false;
-  m_hasEjectedDisk = false;
-  m_profanityCheckFailed = false;
-  m_badWordsNum = 0;
-
-  // TODO: Need to define System::SaveManager and License to set
-  // m_disconnectPenalty.
-
-  m_vr = 0;
-  m_br = 0;
-
-  for (u32 i = 0; i < 12; i++) {
-    m_lastSendIdx[i] = 0;
-  }
-}
-
 void NetManager::scheduleShutdown() { m_shutdownScheduled = true; }
 
 void NetManager::startWWVSSearch(u8 localPlayerCount) {
@@ -402,33 +367,14 @@ bool NetManager::hasFoundMatch() const {
   return inMatch;
 }
 
-void NetManager::clearRACEPacketPointers() {
-  for (u32 i = 0; i < 2; i++) {
-    for (u32 j = 0; j < 12; j++) {
-      m_sendRacePackets[i][j]->clear();
-      m_recvRacePackets[i][j]->clear();
-    }
-  }
-}
-
 void NetManager::setConnectionStateIdle() {
   m_connectionState = CONNECTION_STATE_IDLE;
 }
-
-void NetManager::construct(EGG::ExpHeap* heap) {}
 
 void NetManager::sendRaceUpdateUserPackets() {
   formRacePacket();
   sendRacePacket();
   UserHandler::Instance()->update();
-}
-
-void NetManager::formRacePacket() {
-  if (!hasFoundMatch()) {
-    return;
-  }
-  for (u32 aid = 0; aid < 12; aid++) {
-  }
 }
 
 void NetManager::sendRacePacket() {
@@ -663,8 +609,6 @@ void NetManager::DWCFree(u32 unk, void* block) {
   }
 }
 
-void NetManager::loginCallback(u32 r3, u32 r4, NetManager* netManager) {}
-
 void NetManager::connectionCleanupCallback() {
   u32 zeros;
   for (u8 i = 0; i < 12; i++) {
@@ -726,12 +670,6 @@ void NetManager::DWCSetBuddyFriendCallback(u32 r3, NetManager* netManager) {
   netManager->m_friendRosterChanged = true;
 }
 
-void NetManager::initRecvPacketBuffer() {}
-
-void NetManager::handleAidDisconnect(u8 aid) {}
-
-void NetManager::connect() {}
-
 void NetManager::initMMInfos() {
   for (u32 i = 0; i < ARRAY_SIZE(m_matchMakingInfos); i++) {
     m_matchMakingInfos[i].matchMakingStartTime = 0;
@@ -779,7 +717,7 @@ void NetManager::calcOutgoingCRC32(u8 aid) {
       ->crc32 = crc32;
 }
 
-void NetManager::processRACEPacket(u8 aid, RacePacketHeader* header, u32 size) {
+void NetManager::processRacePacket(u8 aid, RacePacketHeader* header, u32 size) {
   u32 origCrc32 = header->crc32;
   header->crc32 = 0;
   u32 calcCrc32 = NETCalcCRC32(header, size);
@@ -999,6 +937,55 @@ void NetManager::updateStatusDatas() {
 
 bool NetManager::hasDisconnected(u32 playerId) {
   return (1 << playerId & m_disconnectedPlayerIds) != 0;
+}
+
+RecordHolder::RecordHolder(u32 bufferSize) {
+  m_packet = nullptr;
+  m_bufferSize = bufferSize;
+  m_packetSize = 0;
+  m_packet = operator new[](bufferSize);
+  reset();
+}
+
+RecordHolder::~RecordHolder() {
+  delete m_packet;
+  m_packet = 0;
+}
+
+void RecordHolder::reset() {
+  memset(m_packet, 0, m_bufferSize);
+  m_packetSize = 0;
+}
+
+void RecordHolder::copy(void* src, u32 len) {
+  memcpy(m_packet, src, len);
+  m_packetSize = len;
+}
+
+void RecordHolder::append(void* src, u32 len) {
+  memcpy((void*)((u32)m_packet + m_packetSize), src, len);
+  m_packetSize += len;
+}
+
+const u32 recordSizes[9] = {0x10, 0x28, 0x28, 0x38, 0x80,
+                            0xc0, 0x10, 0xf8, 0x2e0};
+
+RacePacketHolder::RacePacketHolder() {
+  for (u32 i = 0; i < ARRAY_SIZE(m_records); i++) {
+    m_records[i] = new RecordHolder(recordSizes[i]);
+  }
+}
+
+RacePacketHolder::~RacePacketHolder() {
+  for (u32 i = 0; i < ARRAY_SIZE(m_records); i++) {
+    delete m_records[i];
+  }
+}
+
+void RacePacketHolder::clear() {
+  for (u32 i = 0; i < 8; i++) {
+    holder(i)->reset();
+  }
 }
 
 } // namespace Net

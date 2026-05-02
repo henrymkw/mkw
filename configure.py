@@ -817,8 +817,6 @@ config.libs = [
 
             Object(NonMatching, "net/MiscPacketHandler.cpp"),
             Object(NonMatching, "net/NetManager.cpp"),
-            Object(NonMatching, "net/RacePacketHolder.cpp"),
-            Object(NonMatching, "net/RecordHolder.cpp"),
             Object(NonMatching, "net/FriendRosterManager.cpp"),
             Object(NonMatching, "net/GPCallbacks.cpp"),
             Object(NonMatching, "net/records/Room.cpp"),

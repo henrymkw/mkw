@@ -171,16 +171,10 @@ net/MiscPacketHandler.cpp:
 	.bss        start:0x809C1F50 end:0x809C1F58
 
 net/NetManager.cpp:
-	.text       start:0x80655B24 end:0x8065A24C
+	.text       start:0x80655B24 end:0x8065A4F8
+	.rodata     start:0x8089A188 end:0x8089A2C0
 	.data       start:0x808C0960 end:0x808C0998
 	.bss        start:0x809C1F58 end:0x809C20E0
-
-net/RecordHolder.cpp:
-	.text       start:0x8065A24C end:0x8065A3DC
-
-net/RacePacketHolder.cpp:
-	.text       start:0x8065A3DC end:0x8065A4F8
-	.rodata     start:0x8089A194 end:0x8089A1B8
 
 net/GPCallbacks.cpp:
 	.text       start:0x8065A8D4 end:0x8065AA88

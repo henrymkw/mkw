@@ -16,42 +16,28 @@ void MiscPacketHandler::createInstance() {
   }
 }
 
-void MiscPacketHandler::setRH2Record(RH2Record* packet) {
-  NetManager* netManager = NetManager::Instance();
-  NetManager::MatchMakingInfo* mmInfo = netManager->getMMInfo();
-
-  /*
-  for (u8 i = 0; i < MAX_PLAYER_COUNT; i++) {
-    if (((1 << i) & mmInfo->m_fullAidBitmap) && (i != mmInfo->m_myAid)) {
-      netManager->m_sendRacePackets[netManager->m_lastSendIdx[i]][i]
-          ->getRaceHeader1Packet()->copy(packet, 0x28);
-    }
-  }
-  */
-}
-
-void MiscPacketHandler::resetSendRACEDATAPackets() {
+void MiscPacketHandler::resetSendRaceDataRecords() {
   for (u8 aid = 0; aid < MAX_PLAYER_COUNT; aid++) {
     NetManager::Instance()->getSendRACEDATAPacketHolder(aid)->reset();
   }
 }
 
-void MiscPacketHandler::resetSendRACEHEADER2Packets() {
+void MiscPacketHandler::resetSendRH2Records() {
   for (u8 aid = 0; aid < MAX_PLAYER_COUNT; aid++) {
     NetManager::Instance()->getSendRH2PacketHolder(aid)->reset();
   }
 }
 
-void MiscPacketHandler::clearAidFromUnkBitfield(u32 aid) {
-  m_aidsWithRH1Seed &= ~(1 << aid);
+void MiscPacketHandler::clearAidInRace(u32 aid) {
+  m_aidsLoadedIntoRace &= ~(1 << aid);
 }
 
 MiscPacketHandler::MiscPacketHandler()
-    : m_isPrepared(0), scheduleDisconnect(false), m_aidsWithRH1Seed(0),
+    : m_isPrepared(0), scheduleDisconnect(false), m_aidsLoadedIntoRace(0),
       m_aidsLastSentRoomOrSelect(0), m_aidsShouldStop(0), m_myLagFrames(0),
       m_countdownTime(3000) {
-  EventHandler::createStaticInstance();
-  ItemHandler::createStaticInstance();
+  EventHandler::createInstance();
+  ItemHandler::createInstance();
 }
 
 u8 MiscPacketHandler::getAidFromPlayerId(s32 playerId) const {
@@ -72,8 +58,8 @@ void MiscPacketHandler::updateAsSpectator() {
     netManager->setVoteMatchMakingSuspend();
   }
 
-  EventHandler::Instance()->calc();
-  ItemHandler::Instance()->calc();
+  EventHandler::Instance()->update();
+  ItemHandler::Instance()->update();
 
   for (u32 playerId = 0;
        playerId < System::RaceConfig::spInstance->mRaceScenario.mPlayerCount;
@@ -103,7 +89,7 @@ bool MiscPacketHandler::isEveryoneInRace() const {
   System::RaceManager* raceManager = System::RaceManager::spInstance;
   NetManager* netMgr = NetManager::Instance();
 
-  u32 bitmap2 = m_aidsWithRH1Seed;
+  u32 bitmap2 = m_aidsLoadedIntoRace;
   bitmap2 |= 1 << netMgr->getMMInfo()->myAid;
 
   u32 bitmap = 0;
@@ -124,18 +110,8 @@ bool MiscPacketHandler::isEveryoneInRace() const {
   return (bitmap & bitmap2) == bitmap;
 }
 
-void MiscPacketHandler::update() {}
-
-void MiscPacketHandler::updateAsRacer() {}
-
-void MiscPacketHandler::createExportRH1ExportRaceData() {}
-
-void MiscPacketHandler::processRecvRH1Records() {}
-
-void MiscPacketHandler::processLagFrames() {}
-
 // Scratch: https://decomp.me/scratch/zBfVq
-u32 MiscPacketHandler::getRH1Timer(u32 playerId) {
+u32 MiscPacketHandler::getPlayerElapsedTimeSinceRaceStart(u32 playerId) {
   NetManager* netManager = NetManager::Instance();
 
   u8 aid = getAidFromPlayerId(playerId);
@@ -163,7 +139,7 @@ u32 MiscPacketHandler::getRH1Timer(u32 playerId) {
   return 0;
 }
 
-u16 MiscPacketHandler::unk80654568(u8 aid) {
+u16 MiscPacketHandler::getAidLagFrames(u8 aid) {
   if (isAidInRoom(aid)) {
     if (aid == NetManager::Instance()->getMMInfo()->myAid) {
       return m_myLagFrames;
@@ -180,12 +156,12 @@ u16 MiscPacketHandler::unk80654568(u8 aid) {
   return 0;
 }
 
-bool MiscPacketHandler::isEVENTfun8065b8d4() {
-  return EventHandler::Instance()->unk8065b8d4();
+bool MiscPacketHandler::hasFreeEventEntries() {
+  return EventHandler::Instance()->hasFreeEntries();
 }
 
-u32 MiscPacketHandler::getEVENTUnk2b88() {
-  return EventHandler::Instance()->_unk2b88;
+u32 MiscPacketHandler::getEventFreeSpace() {
+  return EventHandler::Instance()->m_freeSpaceInSendBuffer;
 }
 
 bool MiscPacketHandler::isPlayerIdInRoom(u32 playerId) {
@@ -261,7 +237,7 @@ bool MiscPacketHandler::isPlayerLocal(u32 playerId) {
   return isPlayerIdLocal;
 }
 
-u32 MiscPacketHandler::getHudSlotId(u32 playerId) {
+u32 MiscPacketHandler::getLocalPlayerId(u32 playerId) {
   for (u32 hudId = 0; hudId < 2; hudId++) {
     u32 localPlayerId = NetManager::Instance()->getLocalPlayerId(hudId);
     if (playerId == localPlayerId)
@@ -283,7 +259,7 @@ void MiscPacketHandler::stopDisconnectedPlayers() {
   }
 }
 
-void MiscPacketHandler::stopDisconnectPlayersField_C() {
+void MiscPacketHandler::stopPlayersAsSpectator() {
   for (u32 playerId = 0;
        playerId < System::RaceConfig::spInstance->mRaceScenario.mPlayerCount;
        playerId++) {
@@ -311,7 +287,7 @@ void MiscPacketHandler::updateBitfields() {
       if (holder->getPacketSize() != 0) {
         RH1Record* rh1Packet = reinterpret_cast<RH1Record*>(holder->m_packet);
         if (rh1Packet->seed != 0) {
-          m_aidsWithRH1Seed |= aidSlot;
+          m_aidsLoadedIntoRace |= aidSlot;
         }
         if (rh1Packet->unk17 != 0) {
           m_aidsShouldStop |= aidSlot;
