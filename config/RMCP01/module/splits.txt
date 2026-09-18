@@ -30,7 +30,7 @@ system/KPadController.cpp:
 	.ctors      start:0x8088F400 end:0x8088F404
 	.rodata     start:0x8088FCC0 end:0x8088FCD8
 
-KPadDirector.o:
+system/KPadDirector.cpp:
 	.text       start:0x805230E0 end:0x80524AC4
 	.ctors      start:0x8088F404 end:0x8088F408
 

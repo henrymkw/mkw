@@ -776,6 +776,7 @@ config.libs = [
             Object(NonMatching, "system/CourseMap.cpp"),
             Object(Matching, "system/DvdArchive.cpp"),
             Object(NonMatching, "system/GhostFile.cpp"),
+            Object(NonMatching, "system/KPadDirector.cpp"),
             Object(NonMatching, "system/KPadController.cpp"),
             Object(Matching, "system/LocalizedArchive.cpp"),
             Object(Matching, "system/MultiDvdArchive.cpp"),
